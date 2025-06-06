@@ -16,7 +16,8 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to let you choose profile pictures.",
         "NSCameraUsageDescription": "This app needs access to your camera to let you take profile pictures."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.mynewapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,8 +28,12 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "package": "com.anonymous.mynewapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
