@@ -1,18 +1,15 @@
-import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence, onAuthStateChanged } from 'firebase/auth';
-//import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from 'firebase/storage';
-// import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import firebase from '@react-native-firebase/app';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
 
-// Your Firebase configuration
+// import { getAnalytics } from "firebase/analytics"; // Uncomment if you need Analytics
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.w20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBx9u44PzTUWorLe1hepijyzD6fHv3ZFKw",
+  apiKey: "AIzaSyBqsgK25wY27ZGD0CDwV5nfGDqso00LSWQ",
   authDomain: "halalway-ef823.firebaseapp.com",
   projectId: "halalway-ef823",
   storageBucket: "halalway-ef823.appspot.com",
@@ -21,30 +18,10 @@ const firebaseConfig = {
   measurementId: "G-N57G4PSKEC"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase App once and export all services
+export const FIREBASE_APP = initializeApp(firebaseConfig);
+export const FIREBASE_AUTH = getAuth(FIREBASE_APP);
+export const FIREBASE_DB = getFirestore(FIREBASE_APP);
+export const FIREBASE_STORAGE = getStorage(FIREBASE_APP);
 
-  // Initialize Auth
-//const FIREBASE_AUTH = getAuth(app);
-const FIREBASE_AUTH = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-})
-
-// Initialize Firestore
-const FIREBASE_DB = getFirestore(app);
-
-// Initialize Storage
-const FIREBASE_STORAGE = getStorage(app);
-
-// Handle auth state changes
-onAuthStateChanged(FIREBASE_AUTH, (user) => {
-  if (user) {
-    // User is signed in
-    console.log('User is signed in:', user.uid);
-  } else {
-    // User is signed out
-    console.log('User is signed out');
-  }
-});
-
-export { app, FIREBASE_AUTH, FIREBASE_DB, FIREBASE_STORAGE };
+// const analytics = getAnalytics(app);
