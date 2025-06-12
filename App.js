@@ -1,17 +1,15 @@
-import { StatusBar } from 'expo-status-bar';
+// Import Screens
+
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './screen/FirebaseConfig';
 import { AuthProvider } from './screen/AuthContext';
-import { MaterialIcons } from '@expo/vector-icons';
-import * as Font from 'expo-font';
-import { User } from 'firebase/auth';
-import { RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 // Import all screens
 import Register from './screen/Register';
@@ -38,85 +36,22 @@ import UploadSlipScreen from './screen/UploadSlipScreen';
 import CampaignReportScreen from './screen/CampaignReportScreen';
 import NewServices from './screen/NewServices';
 import AdminScreen from './screen/AdminScreen';
+import AddPromotion from './screen/AddPromotion';
+import PromotionList from './screen/PromotionList';
+import EditPromotion from './screen/EditPromotion';
+import AddScreen from './screen/AddScreen';
 import NotificationScreen from './screen/NotificationScreen';
-import './screen/i18n'; // Import i18n configuration
+import AddServiceScreen from './screen/AddServiceScreen';
+import GeneralUserQuantityScreen from './screen/GeneralUserQuantityScreen';
 
-// Define types for navigation
-type RootStackParamList = {
-  HomeScreen: undefined;
-  Register: undefined;
-  'Login-email': undefined;
-  'Login-phone': undefined;
-  auth: undefined;
-  Detail: undefined;
-  Search: undefined;
-  BlogDetail: undefined;
-  DiscountDetail: undefined;
-  CategoryServices: undefined;
-  LanguageSettings: undefined;
-  Favorites: undefined;
-  EditProfile: undefined;
-  Menu: undefined;
-  NewServices: undefined;
-  AddMapScreen: undefined;
-  PaymentScreen: undefined;
-  UploadSlipScreen: undefined;
-  CampaignReportScreen: undefined;
-  CampaignScreen: undefined;
-  AdminScreen: undefined;
-  NotiAdmin: undefined;
-  GuestTabs: undefined;
-  GeneralUserTabs: undefined;
-  EntrepreneurTabs: undefined;
-  EntrepreneurHome: undefined;
-};
 
-type TabParamList = {
-  HomeTab: undefined;
-  DiscountTab: undefined;
-  SearchTab: undefined;
-  BlogTab: undefined;
-  MenuTab: undefined;
-  EntrepreneurTab: undefined;
-  CampaignsTab: undefined;
-  AdminTab: undefined;
-  EntrepreneurHome: undefined;
-};
-
-// Create navigators with proper typing
-const Stack = createStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<TabParamList>();
-const AuthStack = createStackNavigator<RootStackParamList>();
-const GeneralUserStack = createStackNavigator<RootStackParamList>();
-const EntrepreneurStack = createStackNavigator<RootStackParamList>();
-const GuestStack = createStackNavigator<RootStackParamList>();
-const AdminStack = createStackNavigator<RootStackParamList>();
-
-// Define props interfaces
-interface TabNavigatorProps {
-  user: User | null;
-  onLogout?: () => void;
-}
-
-interface TabBarIconProps {
-  focused: boolean;
-  color: string;
-  size: number;
-}
-
-interface HomeProps {
-  user: User | null;
-  onLogout?: () => void;
-  route: RouteProp<TabParamList, 'HomeTab'>;
-  navigation: StackNavigationProp<RootStackParamList>;
-}
-
-interface EntrepreneurHomeProps {
-  user: User | null;
-  onLogout?: () => void;
-  route: RouteProp<TabParamList, 'EntrepreneurHome'>;
-  navigation: StackNavigationProp<RootStackParamList>;
-}
+// Create navigators
+const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+const AuthStack = createStackNavigator();
+const GeneralUserStack = createStackNavigator();
+const EntrepreneurStack = createStackNavigator();
+const GuestStack = createStackNavigator();
 
 // Auth navigator for login/register screens
 const AuthNavigator = () => (
@@ -131,47 +66,25 @@ const AuthNavigator = () => (
     <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
-    <AuthStack.Screen name="auth" component={() => <View><Text>AuthPlaceholder</Text></View>} />
   </AuthStack.Navigator>
-);
-
-const AdminTabs = () => (
-  <Tab.Navigator
-    screenOptions={({ route }: { route: RouteProp<TabParamList, keyof TabParamList> }) => ({
-      tabBarIcon: ({ focused, color, size }: TabBarIconProps) => {
-        let iconName: keyof typeof MaterialIcons.glyphMap = 'admin-panel-settings';
-        if (route.name === 'AdminTab') {
-          iconName = 'admin-panel-settings';
-        }
-        return <MaterialIcons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: '#FDCB02',
-      tabBarInactiveTintColor: '#9ca3af',
-      tabBarStyle: {
-        backgroundColor: '#014737',   
-      },
-    })}
-  >
-    <Tab.Screen name="AdminTab" component={AdminScreen} options={{ headerShown: false, title: 'Admin' }} />
-  </Tab.Navigator>
 );
 
 // Guest user tab navigator - allows access to limited features without login
 const GuestTabs = () => (
   <Tab.Navigator
-    screenOptions={({ route }: { route: RouteProp<TabParamList, keyof TabParamList> }) => ({
-      tabBarIcon: ({ focused, color, size }: TabBarIconProps) => {
-        let iconName: keyof typeof MaterialIcons.glyphMap = 'home';
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
         if (route.name === 'HomeTab') {
           iconName = 'home';
         } else if (route.name === 'DiscountTab') {
-          iconName = 'local-offer';
+          iconName = 'percent';
         } else if (route.name === 'SearchTab') {
-          iconName = 'search';
+          iconName = 'map';
         } else if (route.name === 'BlogTab') {
-          iconName = 'article';
+          iconName = 'book';
         }
-        return <MaterialIcons name={iconName} size={size} color={color} />;
+        return <Icon name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: '#FDCB02',
       tabBarInactiveTintColor: '#9ca3af',
@@ -220,23 +133,23 @@ const GuestStackNavigator = () => (
 );
 
 // General user main tab navigator
-const GeneralUserTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
+const GeneralUserTabs = ({ user, onLogout }) => (
   <Tab.Navigator
-    screenOptions={({ route }: { route: RouteProp<TabParamList, keyof TabParamList> }) => ({
-      tabBarIcon: ({ focused, color, size }: TabBarIconProps) => {
-        let iconName: keyof typeof MaterialIcons.glyphMap = 'home';
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
         if (route.name === 'HomeTab') {
           iconName = 'home';
         } else if (route.name === 'DiscountTab') {
-          iconName = 'local-offer';
+          iconName = 'percent';
         } else if (route.name === 'SearchTab') {
-          iconName = 'search';
+          iconName = 'map';
         } else if (route.name === 'BlogTab') {
-          iconName = 'article';
+          iconName = 'book';
         } else if (route.name === 'MenuTab') {
           iconName = 'menu';
         }
-        return <MaterialIcons name={iconName} size={size} color={color} />;
+        return <Icon name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: '#FDCB02',
       tabBarInactiveTintColor: '#9ca3af',
@@ -252,7 +165,7 @@ const GeneralUserTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
       name="HomeTab"
       options={{ headerShown: false, title: 'Home' }}
     >
-      {() => <Home />}
+      {props => <Home {...props} user={user} onLogout={onLogout} />}
     </Tab.Screen>
     <Tab.Screen name="DiscountTab" component={Discount} options={{ headerShown: false, title: 'Discount' }} />
     <Tab.Screen name="SearchTab" component={Search} options={{ headerShown: false, title: 'Search' }} />
@@ -261,17 +174,17 @@ const GeneralUserTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
 );
 
 // Entrepreneur user main tab navigator
-const EntrepreneurTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
+const EntrepreneurTabs = ({ user, onLogout }) => (
   <Tab.Navigator
-    screenOptions={({ route }: { route: RouteProp<TabParamList, keyof TabParamList> }) => ({
-      tabBarIcon: ({ focused, color, size }: TabBarIconProps) => {
-        let iconName: keyof typeof MaterialIcons.glyphMap = 'home';
-        if (route.name === 'EntrepreneurHome') {
+    screenOptions={({ route }) => ({
+      tabBarIcon: ({ focused, color, size }) => {
+        let iconName;
+        if (route.name === 'EntrepreneurTab') {
           iconName = 'home';
         } else if (route.name === 'CampaignsTab') {
           iconName = 'campaign';
         }
-        return <MaterialIcons name={iconName} size={size} color={color} />;
+        return <Icon name={iconName} size={size} color={color} />;
       },
       tabBarActiveTintColor: '#FDCB02',
       tabBarInactiveTintColor: '#9ca3af',
@@ -287,7 +200,7 @@ const EntrepreneurTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
       name="EntrepreneurHome"
       options={{ headerShown: false, title: 'Home' }}
     >
-      {() => <EntrepreneurHome />}
+      {props => <EntrepreneurHome {...props} user={user} onLogout={onLogout} />}
     </Tab.Screen>
     <Tab.Screen
       name="CampaignsTab"
@@ -297,8 +210,9 @@ const EntrepreneurTabs: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
   </Tab.Navigator>
 );
 
+
 // General user stack for detailed screens
-const GeneralUserStackNavigator: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
+const GeneralUserStackNavigator = ({ user, onLogout }) => (
   <GeneralUserStack.Navigator
     screenOptions={{
       ...TransitionPresets.SlideFromRightIOS,
@@ -324,8 +238,8 @@ const GeneralUserStackNavigator: React.FC<TabNavigatorProps> = ({ user, onLogout
   </GeneralUserStack.Navigator>
 );
 
-// EntrepreneurStackNavigator
-const EntrepreneurStackNavigator: React.FC<TabNavigatorProps> = ({ user, onLogout }) => (
+// EntrepreneurStackNavigator should be referencing EntrepreneurTabs on the first screen
+const EntrepreneurStackNavigator = ({ user, onLogout }) => (
   <EntrepreneurStack.Navigator
     initialRouteName="EntrepreneurTabs"
     screenOptions={{
@@ -350,36 +264,46 @@ const EntrepreneurStackNavigator: React.FC<TabNavigatorProps> = ({ user, onLogou
     <EntrepreneurStack.Screen name="LanguageSettings" component={LanguageSettings} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
     <EntrepreneurStack.Screen name="CampaignScreen" component={CampaignScreen} />
+
   </EntrepreneurStack.Navigator>
 );
-
-const AdminStackNavigator: React.FC<{ user: User | null }> = ({ user }) => (
+const AdminStackNavigator = ({ user }) => (
   <Stack.Navigator
     screenOptions={{
       headerStyle: { backgroundColor: '#063c2f' },
       headerTintColor: '#fff',
     }}
   >
-    <Stack.Screen name="AdminScreen" component={AdminScreen} options={{ title: 'Admin Dashboard' }} />
-    <Stack.Screen name="NewServices" component={NewServices} options={{ title: 'Add New Service' }} />
-    <Stack.Screen name="NotiAdmin" component={NotificationScreen} options={{ title: 'Notifications' }} />
+    <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="AddPromotion" component={AddPromotion} />
+    <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} />
+    <Stack.Screen name="PromotionList" component={PromotionList} />
+    <Stack.Screen name="EditPromotion" component={EditPromotion} />
+    <Stack.Screen name="AddScreen" component={AddScreen} />
+    <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
+    <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen} />
+    
+    {/* <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} />
+    <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen} />
+    <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen} />
+    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} /> */}
+
   </Stack.Navigator>
 );
 
-const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [fontsLoaded, setFontsLoaded] = useState<boolean>(false);
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = FIREBASE_AUTH.onAuthStateChanged(async (currentUser: User | null) => {
+    const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
 
         try {
-          const userDoc = await FIREBASE_DB.collection('user').doc(currentUser.uid).get();
-          if (userDoc.exists) {
+          const userDoc = await getDoc(doc(FIREBASE_DB, "user", currentUser.uid));
+          if (userDoc.exists()) {
             setRole(userDoc.data().role);
           } else {
             setRole("General User");
@@ -396,28 +320,6 @@ const App: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    async function loadFonts() {
-      try {
-        await Font.loadAsync({
-          'MaterialIcons': require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf'),
-        });
-        setFontsLoaded(true);
-      } catch (error) {
-        console.error('Error loading fonts:', error);
-      }
-    }
-    loadFonts();
-  }, []);
-
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#014737" />
-      </View>
-    );
-  }
 
   if (loading) {
     return (
@@ -436,14 +338,14 @@ const App: React.FC = () => {
         ) : role === "Admin" ? (
           <AdminStackNavigator user={user} />
         ) : role === "Entrepreneur" ? (
-          <EntrepreneurStackNavigator user={user} onLogout={() => FIREBASE_AUTH.signOut()} />
+          <EntrepreneurStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
         ) : (
-          <GeneralUserStackNavigator user={user} onLogout={() => FIREBASE_AUTH.signOut()} />
+          <GeneralUserStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
         )}
       </NavigationContainer>
     </AuthProvider>
   );
-};
+}
 
 const styles = StyleSheet.create({
   splashContainer: {
@@ -459,5 +361,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-export default App;
