@@ -50,6 +50,10 @@ export default function AdminScreen() {
     fetchCounts();
   }, []);
 
+  const handleCardPress = (screenName) => {
+    navigation.navigate(screenName);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -71,19 +75,23 @@ export default function AdminScreen() {
       {/* Dashboard Cards */}
       <ScrollView style={styles.cardsContainer} showsVerticalScrollIndicator={false}>
         {[
-          { label: 'General user quantity', value: counts.users },
-          { label: 'Entrepreneur quantity', value: counts.entrepreneurs },
-          { label: 'Services quantity', value: counts.services },
-          { label: 'Blog quantity', value: counts.blogs },
-          { label: 'Promotion quantity', value: counts.promotions },
+          { label: 'General user quantity', value: counts.users, screen: 'GeneralUserQuantityScreen' },
+          { label: 'Entrepreneur quantity', value: counts.entrepreneurs, screen: 'EntrepreneurQuantityScreen' },
+          { label: 'Services quantity', value: counts.services, screen: 'ServicesQuantityScreen' },
+          { label: 'Blog quantity', value: counts.blogs, screen: 'BlogQuantityScreen' },
+          { label: 'Promotion quantity', value: counts.promotions, screen: 'PromotionQuantityScreen' },
         ].map((item, index) => (
-          <View key={index} style={styles.card}>
+          <TouchableOpacity 
+            key={index} 
+            style={styles.card}
+            onPress={() => handleCardPress(item.screen)}
+          >
             <View style={styles.cardTop}>
               <Text style={styles.cardValue}>{item.value}</Text>
               <Feather name="more-horizontal" size={20} color="white" />
             </View>
             <Text style={styles.cardLabel}>{item.label}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
 
