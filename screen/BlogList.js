@@ -9,7 +9,7 @@ import {
   Alert,
   TextInput,
 } from 'react-native';
-import { db } from '../firebase/FirebaseConfig';
+import { FIREBASE_DB } from '../screen/FirebaseConfig';
 import {
   collection,
   getDocs,
@@ -100,6 +100,13 @@ export default function BlogList({ navigation }) {
         onChangeText={setSearch}
       />
 
+      <TouchableOpacity
+        style={styles.addBtn}
+        onPress={() => navigation.navigate('AddBlog')}
+      >
+        <Text style={styles.addBtnText}>＋ Add Blog</Text>
+      </TouchableOpacity>
+
       <FlatList
         data={filteredBlogs}
         keyExtractor={item => item.id}
@@ -150,5 +157,17 @@ const styles = StyleSheet.create({
   deleteText: {
     fontSize: 20,
     color: '#D11A2A',
+  },
+  addBtn: {
+    backgroundColor: '#002B28',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  addBtnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
