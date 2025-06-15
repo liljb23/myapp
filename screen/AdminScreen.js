@@ -33,7 +33,7 @@ export default function AdminScreen() {
         // Get other collection counts
         const servicesSnap = await getCountFromServer(collection(FIREBASE_DB, 'Services'));
         const blogsSnap = await getCountFromServer(collection(FIREBASE_DB, 'Blog'));
-        const promosSnap = await getCountFromServer(collection(FIREBASE_DB, 'Promotions'));
+        const promosSnap = await getCountFromServer(collection(FIREBASE_DB, 'promotions'));
   
         setCounts({
           users: generalUserCount,
@@ -68,8 +68,8 @@ export default function AdminScreen() {
 
       {/* Greeting */}
       <View style={styles.greeting}>
-        <Text style={styles.helloText}>Hello , Mint (Admin)</Text>
-        <Text style={styles.emailText}>mintttttttt@gmail.com</Text>
+        <Text style={styles.helloText}>Hello, (Admin)</Text>
+        <Text style={styles.emailText}>admin@halalway.com</Text>
       </View>
 
       {/* Dashboard Cards */}
@@ -99,15 +99,15 @@ export default function AdminScreen() {
       <View style={styles.tabBar}>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
           <Ionicons name="home-outline" size={24} color="#FFD700" />
-          <Text style={styles.tabText}>Home</Text>
+          <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('NewServices')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddScreen')}>
           <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.tabTextActive}>Add</Text>
+          <Text style={styles.tabText}>Add</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('NotiAdmin')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminNoti')}>
           <Ionicons name="notifications-outline" size={24} color="white" />
           <Text style={styles.tabText}>Notification</Text>
         </TouchableOpacity>
