@@ -1,6 +1,6 @@
 // Import Screens
 
-import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './screen/FirebaseConfig';
 import { AuthProvider } from './screen/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import all screens
 import Register from './screen/Register';
@@ -33,7 +34,6 @@ import AddMapScreen from './screen/AddMapScreen';
 import CampaignScreen from './screen/CampaignScreen';
 import PaymentScreen from './screen/PaymentScreen';
 import UploadSlipScreen from './screen/UploadSlipScreen';
-import CampaignReportScreen from './screen/CampaignReportScreen';
 import NewServices from './screen/NewServices';
 import AdminScreen from './screen/AdminScreen';
 import AddPromotion from './screen/AddPromotion';
@@ -43,7 +43,15 @@ import AddScreen from './screen/AddScreen';
 import NotificationScreen from './screen/NotificationScreen';
 import AddServiceScreen from './screen/AddServiceScreen';
 import GeneralUserQuantityScreen from './screen/GeneralUserQuantityScreen';
-
+import EntrepreneurQuantityScreen from './screen/EntrepreneurQuantityScreen';
+import ServicesQuantityScreen from './screen/ServicesQuantityScreen';
+import BlogQuantityScreen from './screen/BlogQuantityScreen';
+import PromotionQuantityScreen from './screen/PromotionQuantityScreen';
+import AddBlog from './screen/AddBlog';
+import BlogList from './screen/BlogList';
+import SlipDetail from './screen/SlipDetail';
+import AdminNoti from './screen/AdminNoti';
+import CampaignReportScreen from './screen/CampaignReportScreen';
 
 // Create navigators
 const Stack = createStackNavigator();
@@ -270,11 +278,14 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
 const AdminStackNavigator = ({ user }) => (
   <Stack.Navigator
     screenOptions={{
+      ...TransitionPresets.SlideFromRightIOS,
       headerStyle: { backgroundColor: '#063c2f' },
       headerTintColor: '#fff',
     }}
   >
-    <Stack.Screen name="Admin" component={AdminScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="AdminScreen" component={AdminScreen} options={{ headerShown: false }} />
+   
+    {/* Other Admin Screens */}
     <Stack.Screen name="AddPromotion" component={AddPromotion} />
     <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} />
     <Stack.Screen name="PromotionList" component={PromotionList} />
@@ -282,12 +293,18 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="AddScreen" component={AddScreen} />
     <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
     <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen} />
-    
-    {/* <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} />
+    <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} />
     <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen} />
     <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen} />
-    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} /> */}
+    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} />
+    <Stack.Screen name="AddBlog" component={AddBlog} />
+    <Stack.Screen name="BlogList" component={BlogList} />
+    <Stack.Screen name="AddServices" component={BlogList} />
+    <Stack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
+    <Stack.Screen name="SlipDetail" component={SlipDetail} />
+    <Stack.Screen name="AdminNoti" component={AdminNoti} />
 
+   
   </Stack.Navigator>
 );
 
