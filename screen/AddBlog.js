@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/FirebaseConfig';
+import { FIREBASE_DB } from '../screen/FirebaseConfig';
 
 export default function AddBlog({ navigation }) {
   const [title, setTitle] = useState('');
@@ -24,7 +24,7 @@ export default function AddBlog({ navigation }) {
     }
 
     try {
-      await addDoc(collection(db, 'Blog'), {
+      await addDoc(collection(FIREBASE_DB, 'Blog'), {
         title,
         name,
         predescription,
