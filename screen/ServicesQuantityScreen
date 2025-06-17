@@ -150,7 +150,7 @@ export default function ServicesQuantityScreen() {
           <Text style={styles.headerTitle}>Services</Text>
           <Text style={styles.quantityText}>Total: {filteredServices.length}</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('AddService')}>
+        <TouchableOpacity onPress={() => navigation.navigate('AddServices')}>
           <Ionicons name="add-circle-outline" size={24} color="white" />
         </TouchableOpacity>
       </View>
@@ -199,8 +199,8 @@ export default function ServicesQuantityScreen() {
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
+          <Ionicons name="home-outline" size={24} color="#FFD700" />
+          <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddScreen')}>
           <Ionicons name="add" size={24} color="white" />
@@ -394,5 +394,10 @@ const styles = StyleSheet.create({
   filterButtonTextActive: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  tabTextActive: {
+    color: '#FFD700',
+    fontSize: 12,
+    marginTop: 3,
   },
 }); 
