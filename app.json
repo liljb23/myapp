@@ -17,7 +17,10 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to let you choose profile pictures.",
         "NSCameraUsageDescription": "This app needs access to your camera to let you take profile pictures."
       },
-      "bundleIdentifier": "com.anonymous.mynewapp"
+      "bundleIdentifier": "com.anonymous.mynewapp",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBx9u44PzTUWorLe1hepijyzD6fHv3ZFKw"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +36,12 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ],
-      "package": "com.anonymous.mynewapp"
+      "package": "com.anonymous.mynewapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBx9u44PzTUWorLe1hepijyzD6fHv3ZFKw"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
