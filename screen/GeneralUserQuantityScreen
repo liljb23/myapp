@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   View,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
 
@@ -18,28 +19,56 @@ export default function GeneralUserQuantityScreen() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const snap = await getDocs(collection(FIREBASE_DB, 'user'));
-        const filtered = snap.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
-          .filter(u => u.role?.toLowerCase() === 'general user');
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const snap = await getDocs(collection(FIREBASE_DB, 'user'));
+      const filtered = snap.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter(u => u.role?.toLowerCase() === 'general user');
 
-        console.log('✅ Users:', filtered);
-        setUsers(filtered);
-      } catch (e) {
-        console.error('🔥 Error fetching users:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
+      console.log('✅ Users:', filtered);
+      setUsers(filtered);
+    } catch (e) {
+      console.error('🔥 Error fetching users:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchUsers();
-  }, []);
+  // Use useFocusEffect to reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchUsers();
+    }, [])
+  );
+
+  const handleDelete = (userId) => {
+    Alert.alert(
+      'Delete Entrepreneur',
+      'Are you sure you want to delete this entrepreneur?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(FIREBASE_DB, 'user', userId));
+              setUsers(users.filter(u => u.id !== userId));
+              Alert.alert('Entrepreneur deleted');
+            } catch (error) {
+              console.error('Error deleting entrepreneur:', error);
+              Alert.alert('Failed to delete entrepreneur');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderUserCard = ({ item }) => (
     <View style={styles.card}>
@@ -90,7 +119,7 @@ export default function GeneralUserQuantityScreen() {
       <View style={styles.cardFooter}>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => navigation.navigate('EditProfile', { userId: item.id })}
+          onPress={() => navigation.navigate('EditUser', { user: item })}
         >
           <Ionicons name="create-outline" size={20} color="#002B28" />
           <Text style={styles.actionButtonText}>Edit</Text>
@@ -102,6 +131,14 @@ export default function GeneralUserQuantityScreen() {
         >
           <Ionicons name="eye-outline" size={20} color="#002B28" />
           <Text style={styles.actionButtonText}>View Details</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: '#ffeaea' }]}
+          onPress={() => handleDelete(item.id)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#D11A2A" />
+          <Text style={[styles.actionButtonText, { color: '#D11A2A' }]}>Delete</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -142,8 +179,8 @@ export default function GeneralUserQuantityScreen() {
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
+          <Ionicons name="home-outline" size={24} color="#FFD700" />
+          <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddScreen')}>
@@ -302,6 +339,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: 'white',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  tabTextActive: {
+    color:'#FFD700',
     fontSize: 12,
     marginTop: 3,
   },
