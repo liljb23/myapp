@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { FIREBASE_AUTH } from './FirebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 
 const LoginEmail = () => {
@@ -27,7 +28,7 @@ const LoginEmail = () => {
 
     setLoading(true);
     try {
-      await FIREBASE_AUTH.signInWithEmailAndPassword(email, password);
+      await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
       navigation.navigate('Home');
     } catch (error) {
       console.error(error);
