@@ -1,41 +1,63 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-
-
-const discounts = [
-  {
-    id: '1',
-    image: { uri: 'https://f.ptcdn.info/335/026/000/1418041870-1-o.jpg' },
-    discount: '20% OFF',
-    expiry: 'Expires in February 23, 2025.',
-  },
-  {
-    id: '2',
-    image: { uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSAkU99BCezR9Jg-hi70UUH1e8VRXdtZ1y5aw&s' },
-    discount: '10% OFF',
-    expiry: 'Expires in February 28, 2025.',
-  },
-];
+import { collection, getDocs } from 'firebase/firestore';
+import { FIREBASE_DB } from './FirebaseConfig';
 
 const Discount = () => {
   const navigation = useNavigation();
+  const [discounts, setDiscounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDiscounts = async () => {
+      try {
+        const promotionsCol = collection(FIREBASE_DB, 'promotions');
+        const snapshot = await getDocs(promotionsCol);
+        const list = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setDiscounts(list);
+      } catch (error) {
+        console.error('Error fetching promotions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDiscounts();
+  }, []);
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.card} 
       onPress={() => navigation.navigate('DiscountDetail', { discount: item })}
     >
-      <Image source={item.image} style={styles.image} />
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.image} />
+      ) : (
+        <View style={styles.image} />
+      )}
       <View style={styles.overlay}>
-        <Text style={styles.discountText}>Discount</Text>
-        <Text style={styles.discount}>{item.discount}</Text>
-        <Text style={styles.expiry}>{item.expiry}</Text>
+        <Text style={styles.discountText}>{item.name || 'Discount'}</Text>
+        <Text style={styles.discount}>{item.discount ? `${item.discount}% OFF` : ''}</Text>
+        {item.validUntil && (
+          <Text style={styles.expiry}>
+            Valid until {new Date(item.validUntil.seconds ? item.validUntil.seconds * 1000 : item.validUntil).toLocaleDateString()}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
-  
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#063c2f" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -44,22 +66,13 @@ const Discount = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Feather name="chevron-left" size={40} color="white" />
         </TouchableOpacity>
-        {/*<Image source={require('../assets/logo-removebg.png')} style={styles.logo} />*/}
       </View>
 
       <Text style={styles.headerText}>Discounts and benefits</Text>
       <FlatList data={discounts} renderItem={renderItem} keyExtractor={(item) => item.id} />
-
     </View>
   );
 };
-
-const NavItem = ({ title, iconName, active, onPress }) => (
-  <TouchableOpacity style={[styles.navItem, active && styles.navItemActive]} onPress={onPress}>
-    <Feather name={iconName} size={24} color={active ? "#FDCB02" : "#9ca3af"} />
-    <Text style={[styles.navText, active && styles.navTextActive]}>{title}</Text>
-  </TouchableOpacity>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -83,11 +96,6 @@ const styles = StyleSheet.create({
     top: '70%',
     transform: [{ translateY: -20 }],
   },
-  logo: {
-    width: 200,
-    height: 120,
-    resizeMode: 'contain',
-  },
   headerText: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -106,7 +114,7 @@ const styles = StyleSheet.create({
     height: 120,
     opacity: 0.5,
     alignItems: 'flex-end',
-    resizeMode:'stretch',
+    resizeMode: 'stretch',
   },
   overlay: {
     position: 'absolute',
@@ -115,34 +123,17 @@ const styles = StyleSheet.create({
   },
   discountText: {
     color: '#fff',
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   discount: {
     color: '#fff',
-    fontSize: 25,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   expiry: {
     color: '#fff',
     fontSize: 12,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#063c2f',
-    padding: 15,
-    justifyContent: 'space-around',
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  navTextActive: {
-    color: '#FDCB02',
-    fontWeight: 'bold',
   },
 });
 
