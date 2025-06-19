@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-
+import { FIREBASE_DB } from './FirebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
 
 const Blog = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const toggleFavorite = (id) => {
     setFavorites((prev) =>
@@ -12,29 +15,29 @@ const Blog = ({ navigation }) => {
     );
   };
 
-  const blogData = [
-    {
-      id: 1,
-      title: 'When is Ramadan 2025 in Thailand',
-      description:
-        'In Thailand, Eid Al Fitr is an official holiday even though only four to five percent of the population is Muslim...',
-      image: 'https://sparbd.org/wp-content/uploads/2024/12/When-is-Ramadan-in-2025.jpg',
-    },
-    {
-      id: 2,
-      title: 'Halal and Haram',
-      description:
-        'Halal and haram are Arabic words that describe what is permitted and what is prohibited in Islamic law...',
-      image: 'https://i.ytimg.com/vi/FN6vmdWHUzQ/maxresdefault.jpg',
-    },
-    {
-      id: 3,
-      title: 'How many days of shortened prayers can you pray while traveling?',
-      description:
-        "The prayers of those who travel long distances are given a concession by reducing the number of raka'at...",
-      image: 'https://seekersguidance.org/wp-content/uploads/2024/01/shutterstock_2416559337.jpg',
-    },
-  ];
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        setLoading(true);
+        const blogsCollectionRef = collection(FIREBASE_DB, 'Blog');
+        const blogsSnapshot = await getDocs(blogsCollectionRef);
+        setBlogs(blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (error) {
+        console.error('Error fetching blogs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBlogs();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#063c2f" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -43,7 +46,6 @@ const Blog = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Feather name="chevron-left" size={40} color="white" />
         </TouchableOpacity>
-        {/*<Image source={require('../assets/logo-removebg.png')} style={styles.logo} />*/}
       </View>
 
       {/* Title */}
@@ -51,23 +53,31 @@ const Blog = ({ navigation }) => {
 
       {/* Blog List */}
       <ScrollView>
-        {blogData.map((item) => (
+        {blogs.map((item) => (
           <View key={item.id} style={styles.blogCard}>
             <TouchableOpacity 
-            key={item.id} 
-            style={styles.blogCard} 
-            onPress={() => navigation.navigate('BlogDetail', { blog: item })}
-          ></TouchableOpacity>
+              style={styles.blogCard} 
+              onPress={() => navigation.navigate('BlogDetail', { blog: item })}
+            />
             <Image source={{ uri: item.image }} style={styles.blogImage} />
             <View style={styles.blogContent}>
+              {item.name && (
+                <View style={styles.blogTag}>
+                  <Text style={styles.blogTagText}>{item.name}</Text>
+                </View>
+              )}
               <Text style={styles.blogTitle}>{item.title}</Text>
+              {/* predescription */}
+              {item.predescription && (
+                <Text style={styles.blogPreDescription}>{item.predescription}</Text>
+              )}
               <Text style={styles.blogDescription}>{item.description}</Text>
 
               {/* Read More Button & Favorite */}
               <View style={styles.actionContainer}>
                 <TouchableOpacity 
-                style={styles.readMoreButton}
-                onPress={() => navigation.navigate('BlogDetail', { blog: item })}
+                  style={styles.readMoreButton}
+                  onPress={() => navigation.navigate('BlogDetail', { blog: item })}
                 >
                   <Text style={styles.readMoreText}>Read More</Text>
                 </TouchableOpacity>
@@ -84,49 +94,19 @@ const Blog = ({ navigation }) => {
           </View>
         ))}
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <NavItem
-          title="Home"
-          iconName="home"
-          onPress={() => navigation.navigate("Home" )} 
-        />
-        <NavItem
-          title="Discount"
-          iconName="percent"
-          onPress={() => navigation.navigate("Discount")}
-        />
-        <NavItem
-          title="Search"
-          iconName="map-pin"
-          onPress={() => navigation.navigate("Search")}
-        />
-        <NavItem
-          title="Blog"
-          iconName="book"
-          onPress={() => navigation.navigate("Blog")}
-          active
-        />
-      </View>
-
     </View>
   );
 };
 
-// Navigation Item Component with Feather Icons
-const NavItem = ({ title, iconName, active, onPress }) => (
-  <TouchableOpacity style={[styles.navItem, active && styles.navItemActive]} onPress={onPress}>
-    <Feather name={iconName} size={24} color={active ? "#FDCB02" : "#9ca3af"} />
-    <Text style={[styles.navText, active && styles.navTextActive]}>{title}</Text>
-  </TouchableOpacity>
-);
-
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -141,14 +121,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    left: 15,  // Keep it aligned to the left
+    left: 15,
     top: '70%',
     transform: [{ translateY: -20 }],
-  },
-  logo: {
-    width: 200,
-    height: 120,
-    resizeMode: 'contain',
   },
   pageTitle: {
     fontSize: 22,
@@ -176,6 +151,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
   },
+  blogTag: {
+    backgroundColor: '#014737',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  blogTagText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  blogPreDescription: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#014737',
+    marginBottom: 6,
+  },
   blogDescription: {
     fontSize: 14,
     color: '#666',
@@ -195,23 +189,6 @@ const styles = StyleSheet.create({
   readMoreText: {
     color: 'white',
     fontSize: 14,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#063c2f',
-    padding: 30,
-    justifyContent: 'space-around',
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    color: '#9ca3af',
-    fontSize: 12,
-  },
-  navTextActive: {
-    color: '#FDCB02',
-    fontWeight: 'bold',
   },
 });
 
