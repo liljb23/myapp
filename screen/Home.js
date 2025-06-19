@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const Home = () => {
   const navigation = useNavigation();
@@ -18,8 +19,6 @@ const Home = () => {
   const [touristAttractions, setTouristAttractions] = useState([]);
   const [prayerPlaces, setPrayerPlaces] = useState([]);
   
-
-
   useEffect(() => {
     const unsubscribe = FIREBASE_AUTH.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -33,32 +32,38 @@ const Home = () => {
       try {
         setLoading(true);
 
-        // ดึงข้อมูล Services
-        const servicesSnapshot = await FIREBASE_DB.collection('Services').get();
+        // Services
+        const servicesCollectionRef = collection(FIREBASE_DB, 'Services');
+        const servicesSnapshot = await getDocs(servicesCollectionRef);
         setServices(servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // ดึงเฉพาะ Services ที่เป็น Recommend
-        const recommendQuery = FIREBASE_DB.collection('CampaignSubscriptions').where('status', '==', 'waiting_payment');
-        const recommendSnapshot = await recommendQuery.get();
+        // Recommends
+        const recommendCollectionRef = collection(FIREBASE_DB, 'CampaignSubscriptions');
+        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'waiting_payment'));
+        const recommendSnapshot = await getDocs(recommendQuery);
         setRecommends(recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // ดึงข้อมูล Blog
-        const blogsSnapshot = await FIREBASE_DB.collection('Blog').get();
+        // Blog
+        const blogsCollectionRef = collection(FIREBASE_DB, 'Blog');
+        const blogsSnapshot = await getDocs(blogsCollectionRef);
         setBlogs(blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // 🔹 ดึงข้อมูล Mosques
-        const mosqueQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Mosque');
-        const mosqueSnapshot = await mosqueQuery.get();
+        // Mosques
+        const mosqueCollectionRef = collection(FIREBASE_DB, 'Services');
+        const mosqueQuery = query(mosqueCollectionRef, where('category', '==', 'Mosque'));
+        const mosqueSnapshot = await getDocs(mosqueQuery);
         setMosques(mosqueSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // 🔹 ดึงข้อมูล Tourist Attractions
-        const touristQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Tourist attraction');
-        const touristSnapshot = await touristQuery.get();
+        // Tourist Attractions
+        const touristCollectionRef = collection(FIREBASE_DB, 'Services');
+        const touristQuery = query(touristCollectionRef, where('category', '==', 'Tourist attraction'));
+        const touristSnapshot = await getDocs(touristQuery);
         setTouristAttractions(touristSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // 🔹 ดึงข้อมูล Places of Prayer
-        const prayerQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Prayer Space');
-        const prayerSnapshot = await prayerQuery.get();
+        // Places of Prayer
+        const prayerCollectionRef = collection(FIREBASE_DB, 'Services');
+        const prayerQuery = query(prayerCollectionRef, where('category', '==', 'Prayer Space'));
+        const prayerSnapshot = await getDocs(prayerQuery);
         setPrayerPlaces(prayerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
       } catch (error) {
@@ -78,8 +83,6 @@ const Home = () => {
       </View>
     );
   }
-
-  
 
   return (
     <View style={styles.container}>
