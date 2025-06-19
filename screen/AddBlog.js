@@ -15,6 +15,7 @@ export default function AddBlog({ navigation }) {
   const [title, setTitle] = useState('');
   const [name, setName] = useState('');
   const [predescription, setPredescription] = useState('');
+  const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
 
   const handleSubmit = async () => {
@@ -28,6 +29,7 @@ export default function AddBlog({ navigation }) {
         title,
         name,
         predescription,
+        description,
         image,
         createdAt: serverTimestamp(),
       });
@@ -35,6 +37,7 @@ export default function AddBlog({ navigation }) {
       setTitle('');
       setName('');
       setPredescription('');
+      setDescription('');
       setImage('');
       navigation.goBack(); // หรือ navigation.navigate('BlogList')
     } catch (error) {
@@ -55,7 +58,10 @@ export default function AddBlog({ navigation }) {
 
       <Text style={styles.label}>Predescription</Text>
       <TextInput style={[styles.input, { height: 80 }]} value={predescription} onChangeText={setPredescription} multiline placeholder="Short summary..." />
-
+    
+      <Text style={styles.label}>description</Text>
+      <TextInput style={[styles.input, { height: 120 }]} value={description} onChangeText={setDescription} multiline placeholder="Description..." />
+    
       <Text style={styles.label}>Image URL</Text>
       <TextInput style={styles.input} value={image} onChangeText={setImage} placeholder="Paste image link here" />
 
