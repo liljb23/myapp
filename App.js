@@ -74,7 +74,7 @@ const AuthNavigator = () => (
       headerTintColor: '#fff',
     }}
   >
-    <AuthStack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />
+    <AuthStack.Screen name="HomeScreen" component={Home} options={{ headerShown: false }} />
     <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
@@ -110,7 +110,7 @@ const GuestTabs = () => (
   >
     <Tab.Screen
       name="HomeTab"
-      component={HomeScreen}
+      component={Home}
       options={{ headerShown: false, title: 'Home' }}
     />
     <Tab.Screen name="DiscountTab" component={Discount} options={{ headerShown: false, title: 'Discount' }} />
