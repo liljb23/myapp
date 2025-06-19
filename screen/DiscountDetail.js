@@ -22,9 +22,17 @@ const DiscountDetail = ({ route }) => {
 
   const [isUsed, setIsUsed] = useState(false);
 
+  let expiryText = '';
+  if (discount.validUntil) {
+    const date =
+      discount.validUntil.seconds
+        ? new Date(discount.validUntil.seconds * 1000)
+        : new Date(discount.validUntil);
+    expiryText = `Valid until ${date.toLocaleDateString()}`;
+  }
+
   const handleUseDiscount = () => {
     setIsUsed(true);
-    // สามารถเพิ่มการ Redirect หรือการสร้างโค้ดส่วนลดได้ที่นี่
   };
 
   return (
@@ -32,12 +40,16 @@ const DiscountDetail = ({ route }) => {
       <StatusBar barStyle="light-content" />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <Image 
-            source={discount.image} 
-            style={styles.image}
-            resizeMode="cover"
-          />
-          <TouchableOpacity 
+          {discount.image ? (
+            <Image
+              source={{ uri: discount.image }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.image, { backgroundColor: '#fff' }]} />
+          )}
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -48,29 +60,36 @@ const DiscountDetail = ({ route }) => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.restaurantName}>{discount.name}</Text>
-          
+          <Text style={styles.restaurantName}>{discount.name || 'Discount'}</Text>
+
           <View style={styles.discountInfo}>
-            <Text style={styles.discountText}>Discount <Text style={styles.discountAmount}>{discount.discount}</Text></Text>
-            <Text style={styles.expiry}>Expires in {discount.expiry}</Text>
+            <Text style={styles.discountText}>
+              Discount{' '}
+              <Text style={styles.discountAmount}>
+                {discount.discount ? `${discount.discount}% OFF` : ''}
+              </Text>
+            </Text>
+            {expiryText ? (
+              <Text style={styles.expiry}>{expiryText}</Text>
+            ) : null}
           </View>
 
           <Text style={styles.description}>
-            {discount.description || "A discount code can only be used when booking a hotel room."}
+            {discount.description ||
+              'A discount code can only be used when booking a hotel room.'}
           </Text>
         </View>
       </ScrollView>
 
-      {/* 🔘 ปุ่มใช้ส่วนลด */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.useButton, isUsed && styles.usedButton]}
           onPress={handleUseDiscount}
           activeOpacity={0.8}
           disabled={isUsed}
         >
           <Text style={[styles.useButtonText, isUsed && styles.usedButtonText]}>
-            {isUsed ? "Discount Used" : "Use Discount"}
+            {isUsed ? 'Discount Used' : 'Use Discount'}
           </Text>
         </TouchableOpacity>
       </View>
