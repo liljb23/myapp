@@ -19,7 +19,7 @@ export default function AddBlog({ navigation }) {
   const [image, setImage] = useState('');
 
   const handleSubmit = async () => {
-    if (!title || !name || !predescription || !image) {
+    if (!title || !name || !predescription || !description || !image) {
       Alert.alert('Please fill out all fields');
       return;
     }
