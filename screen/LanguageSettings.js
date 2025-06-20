@@ -8,26 +8,15 @@ import {
   Platform,
   Image
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store'; // ✅ นำเข้า SecureStore
+// import * as SecureStore from 'expo-secure-store'; // ✅ นำเข้า SecureStore
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 const languages = [
-  { 
-    code: 'th', 
-    nameKey: 'Thai',
-    flag: require('../assets/thai.png')
-  },
-  { 
-    code: 'en', 
-    nameKey: 'English',
-    flag: require('../assets/usa.png')
-  },
-  { 
-    code: 'ar', 
-    nameKey: 'Arabic',
-    flag: require('../assets/united-arab-emirates.png')
-  }
+  
+  { code: 'th', name: 'Thai', flag: require('../assets/thai.png') },
+  { code: 'en', name: 'English', flag: require('../assets/usa.png') },
+  { code: 'ar', name: 'Arabic', flag: require('../assets/united-arab-emirates.png') }
 ];
 
 const LanguageSettings = ({ navigation }) => {
@@ -37,18 +26,18 @@ const LanguageSettings = ({ navigation }) => {
   // ✅ โหลดค่าภาษาที่เคยเลือกไว้จาก Storage
   useEffect(() => {
     const loadLanguage = async () => {
-      const storedLanguage = await SecureStore.getItemAsync('appLanguage');
-      if (storedLanguage) {
-        await i18n.changeLanguage(storedLanguage);
-        setSelectedLanguage(storedLanguage);
-      }
+      // const storedLanguage = await SecureStore.getItemAsync('appLanguage');
+      // if (storedLanguage) {
+      //   await i18n.changeLanguage(storedLanguage);
+      //   setSelectedLanguage(storedLanguage);
+      // }
     };
     loadLanguage();
   }, []);
 
   const handleLanguageChange = async (languageCode) => {
     try {
-      await SecureStore.setItemAsync('appLanguage', languageCode); // ✅ บันทึกค่าภาษา
+      // await SecureStore.setItemAsync('appLanguage', languageCode); // ✅ บันทึกค่าภาษา
       await i18n.changeLanguage(languageCode); // ✅ เปลี่ยนภาษาใน i18next
       setSelectedLanguage(languageCode); // ✅ อัพเดท UI
       navigation.goBack(); // ✅ กลับไปหน้าเดิม
@@ -80,14 +69,12 @@ const LanguageSettings = ({ navigation }) => {
             onPress={() => handleLanguageChange(language.code)}
           >
             <View style={styles.languageContent}>
-              {language.flag && (
-                <Image 
-                  source={language.flag} 
-                  style={styles.flagIcon} 
-                  resizeMode="contain"
-                />
-              )}
-              <Text style={styles.languageName}>{t(language.nameKey)}</Text>
+              <Image 
+                source={language.flag} 
+                style={styles.flagIcon} 
+                resizeMode="contain"
+              />
+              <Text style={styles.languageName}>{t(language.name)}</Text>
             </View>
             {selectedLanguage === language.code && (
               <Feather name="check" size={24} color="#014737" />
