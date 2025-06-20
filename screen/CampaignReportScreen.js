@@ -1,8 +1,40 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity,ScrollView, } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { FIREBASE_DB } from './FirebaseConfig';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
-const CampaignReportScreen = ({ navigation }) => {
+const CampaignReportScreen = ({ navigation, route }) => {
+  const campaignId = route?.params?.campaignId || "1";
+  const serviceId = route?.params?.serviceId;
+
+  const [report, setReport] = useState(null);
+
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        if (!serviceId) return;
+        const q = query(
+          collection(FIREBASE_DB, 'CampaignReports'),
+          where('serviceId', '==', serviceId)
+        );
+        const querySnapshot = await getDocs(q);
+
+        let impressions = 0, clicks = 0, conversions = 0;
+        querySnapshot.forEach(doc => {
+          const data = doc.data();
+          impressions += data.impressions || 0;
+          clicks += data.clicks || 0;
+          conversions += data.conversions || 0;
+        });
+        setReport({ impressions, clicks, conversions });
+      } catch (e) {
+        setReport({ impressions: 0, clicks: 0, conversions: 0 });
+      }
+    };
+    fetchReport();
+  }, [serviceId]);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -27,9 +59,15 @@ const CampaignReportScreen = ({ navigation }) => {
             <Text style={styles.timeText}>1 month ago ▼</Text>
           </View>
 
-          <View style={styles.metricBox}><Text style={styles.metricText}>Impressions 👀</Text></View>
-          <View style={styles.metricBox}><Text style={styles.metricText}>Clicks 👆</Text></View>
-          <View style={styles.metricBox}><Text style={styles.metricText}>Conversions 📞</Text></View>
+          <View style={styles.metricBox}>
+            <Text style={styles.metricText}>Impressions 👀: {report?.impressions ?? '-'}</Text>
+          </View>
+          <View style={styles.metricBox}>
+            <Text style={styles.metricText}>Clicks 👆: {report?.clicks ?? '-'}</Text>
+          </View>
+          <View style={styles.metricBox}>
+            <Text style={styles.metricText}>Conversions 📞: {report?.conversions ?? '-'}</Text>
+          </View>
         </View>
 
         {/* Campaign Summary */}
