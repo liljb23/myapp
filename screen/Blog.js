@@ -71,7 +71,6 @@ const Blog = ({ navigation }) => {
               {item.predescription && (
                 <Text style={styles.blogPreDescription}>{item.predescription}</Text>
               )}
-              <Text style={styles.blogDescription}>{item.description}</Text>
 
               {/* Read More Button & Favorite */}
               <View style={styles.actionContainer}>
@@ -165,9 +164,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   blogPreDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#014737',
+    fontSize: 14,
+    color: '#666',
     marginBottom: 6,
   },
   blogDescription: {
