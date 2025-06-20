@@ -12,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
+
 const Menu = ({ navigation }) => {
     const { t } = useTranslation();
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -111,7 +112,7 @@ const Menu = ({ navigation }) => {
                         <Text style={styles.userEmail}>{user.email}</Text>
                     </View>
                 ) : (
-                    <Text style={{ fontSize: 18, color: 'white' }}>Hello,</Text>
+                    <Text style={{ fontSize: 18, color: 'white' }}>{t('Hello')}</Text>
                 )}
             </View>
 
@@ -154,7 +155,7 @@ const Menu = ({ navigation }) => {
                         color="#fff"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.logoutButtonText}>Logout</Text>
+                    <Text style={styles.logoutButtonText}>{t('Logout')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -167,19 +168,19 @@ const Menu = ({ navigation }) => {
                         color="#FF0000"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+                    <Text style={styles.deleteAccountButtonText}>{t('Delete Account')}</Text>
                 </TouchableOpacity>
             </View>
 
             {showConfirmation && (
                 <View style={styles.confirmationContainer}>
-                    <Text style={styles.confirmationText}>Do you want to Logout?</Text>
+                    <Text style={styles.confirmationText}>{t('Do you want to Logout?')}</Text>
                     <View style={styles.confirmationButtons}>
                         <TouchableOpacity style={styles.confirmButton} onPress={confirmLogout}>
-                            <Text style={styles.confirmButtonText}>Yes, Logout</Text>
+                            <Text style={styles.confirmButtonText}>{t('Yes, Logout')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.cancelButton} onPress={cancelLogout}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                            <Text style={styles.cancelButtonText}>{t('Cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
