@@ -8,47 +8,47 @@ import {
   Platform,
   Image
 } from 'react-native';
-// import * as SecureStore from 'expo-secure-store'; // ✅ นำเข้า SecureStore
+import * as SecureStore from 'expo-secure-store'; // ✅ นำเข้า SecureStore
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 const languages = [
   { 
     code: 'th', 
-    name: 'ไทย (Thai)', 
-    //flag: require('../assets/thai.png')
+    nameKey: 'Thai',
+    flag: require('../assets/thai.png')
   },
   { 
     code: 'en', 
-    name: 'English', 
-    //flag: require('../assets/usa.png')
+    nameKey: 'English',
+    flag: require('../assets/usa.png')
   },
   { 
     code: 'ar', 
-    name: 'العربية (Arabic)', 
-    //flag: require('../assets/united-arab-emirates.png')
+    nameKey: 'Arabic',
+    flag: require('../assets/united-arab-emirates.png')
   }
 ];
 
 const LanguageSettings = ({ navigation }) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
 
   // ✅ โหลดค่าภาษาที่เคยเลือกไว้จาก Storage
   useEffect(() => {
     const loadLanguage = async () => {
-      // const storedLanguage = await SecureStore.getItemAsync('appLanguage');
-      // if (storedLanguage) {
-      //   await i18n.changeLanguage(storedLanguage);
-      //   setSelectedLanguage(storedLanguage);
-      // }
+      const storedLanguage = await SecureStore.getItemAsync('appLanguage');
+      if (storedLanguage) {
+        await i18n.changeLanguage(storedLanguage);
+        setSelectedLanguage(storedLanguage);
+      }
     };
     loadLanguage();
   }, []);
 
   const handleLanguageChange = async (languageCode) => {
     try {
-      // await SecureStore.setItemAsync('appLanguage', languageCode); // ✅ บันทึกค่าภาษา
+      await SecureStore.setItemAsync('appLanguage', languageCode); // ✅ บันทึกค่าภาษา
       await i18n.changeLanguage(languageCode); // ✅ เปลี่ยนภาษาใน i18next
       setSelectedLanguage(languageCode); // ✅ อัพเดท UI
       navigation.goBack(); // ✅ กลับไปหน้าเดิม
@@ -66,7 +66,7 @@ const LanguageSettings = ({ navigation }) => {
         >
           <Feather name="chevron-left" size={33} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Change Language</Text>
+        <Text style={styles.headerTitle}>{t('Change Language')}</Text>
       </View>
 
       <View style={styles.languageList}>
@@ -80,12 +80,14 @@ const LanguageSettings = ({ navigation }) => {
             onPress={() => handleLanguageChange(language.code)}
           >
             <View style={styles.languageContent}>
-              <Image 
-                source={language.flag} 
-                style={styles.flagIcon} 
-                resizeMode="contain"
-              />
-              <Text style={styles.languageName}>{language.name}</Text>
+              {language.flag && (
+                <Image 
+                  source={language.flag} 
+                  style={styles.flagIcon} 
+                  resizeMode="contain"
+                />
+              )}
+              <Text style={styles.languageName}>{t(language.nameKey)}</Text>
             </View>
             {selectedLanguage === language.code && (
               <Feather name="check" size={24} color="#014737" />
