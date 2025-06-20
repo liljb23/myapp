@@ -47,7 +47,7 @@ const Search = () => {
   const [markerAnimation] = useState(new Animated.Value(0));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(0.1); // Initial zoom level
+  const [zoomLevel, setZoomLevel] = useState(0.1);
   const [region, setRegion] = useState({
     latitude: 13.7563,
     longitude: 100.5018,
@@ -125,7 +125,6 @@ const Search = () => {
     Yasothon: { latitude: 15.7944, longitude: 104.1453 },
   };
 
-  // Add the getCategoryIcon function
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "restaurant":
@@ -178,7 +177,6 @@ const Search = () => {
     }
   }, [selectedProvince]);
 
-  //แสดงตำแหน่งปัจจุบันของผู้ใช้และตำแหน่งที่ตั้งของบริการที่กรองแล้ว
   useEffect(() => {
     const fetchUserLocation = async () => {
       if (selectedProvince === "Near me") {
@@ -203,7 +201,6 @@ const Search = () => {
     fetchUserLocation();
   }, [selectedProvince]);
 
-  // For the map markers, we need to map the icon names to actual components
   const getMarkerIcon = (category) => {
     const iconName = getCategoryIcon(category);
     return (
@@ -225,11 +222,11 @@ const Search = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const querySnapshot = await FIREBASE_DB.collection("Services").get();
-        const serviceList = [];
-        querySnapshot.forEach((doc) => {
-          serviceList.push({ id: doc.id, ...doc.data() });
-        });
+        const querySnapshot = await getDocs(collection(FIREBASE_DB, "Services"));
+        const serviceList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setServices(serviceList);
         setFilteredServices(serviceList);
       } catch (error) {
@@ -242,29 +239,29 @@ const Search = () => {
     fetchServices();
   }, []);
 
-  // 🚀 โหลดข้อมูลจาก Firestore ตาม Category ที่เลือก
   const fetchServices = async (category) => {
-    try {
-      let servicesCollection = FIREBASE_DB.collection("Services"); // ✅ ตรวจสอบ collection(db, "Services") ถูกต้อง
-
-      // 🔥 ใช้ query และ where ให้ถูกต้อง
-      let q =
-        category !== "All"
-          ? FIREBASE_DB.collection("Services").where("category", "==", category)
-          : servicesCollection;
-
-      const snapshot = await q.get();
-      const serviceList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setServices(serviceList);
-      setFilteredServices(serviceList);
-    } catch (error) {
-      console.error("🔥 Error fetching services: ", error.message);
+  try {
+    let q;
+    if (category !== "All") {
+      q = query(
+        collection(FIREBASE_DB, "Services"),
+        where("category", "==", category)
+      );
+    } else {
+      q = collection(FIREBASE_DB, "Services");
     }
-  };
+    const snapshot = await getDocs(q);
+    const serviceList = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setServices(serviceList);
+    setFilteredServices(serviceList);
+  } catch (error) {
+    console.error("🔥 Error fetching services: ", error.message);
+  }
+};
 
   // ✅ โหลดข้อมูลเริ่มต้นจาก Firebase
   useEffect(() => {
@@ -331,43 +328,46 @@ const Search = () => {
     async (province, category) => {
       setIsLoading(true);
       try {
-        let servicesCollection = FIREBASE_DB.collection("Services");
-        let queryConstraints = [];
-
-        if (province !== "Near me") {
-          queryConstraints.push(FIREBASE_DB.collection("Services").where("province", "==", province));
+        let q;
+        if (province !== "Near me" && category !== "All") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("province", "==", province),
+            where("category", "==", category)
+          );
+        } else if (province !== "Near me") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("province", "==", province)
+          );
+        } else if (category !== "All") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("category", "==", category)
+          );
+        } else {
+          q = collection(FIREBASE_DB, "Services");
         }
 
-        if (category !== "All") {
-          queryConstraints.push(FIREBASE_DB.collection("Services").where("category", "==", category));
-        }
-
-        const q =
-          queryConstraints.length > 0
-            ? FIREBASE_DB.collection("Services").where(...queryConstraints)
-            : servicesCollection;
-
-        const snapshot = await q.get();
+        const snapshot = await getDocs(q);
         const serviceList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
           distance: userLocation
             ? getDistanceFromLatLonInKm(
-              userLocation.latitude,
-              userLocation.longitude,
-              doc.data().latitude,
-              doc.data().longitude
-            )
+                userLocation.latitude,
+                userLocation.longitude,
+                doc.data().latitude,
+                doc.data().longitude
+              )
             : null,
         }));
 
-        // Sort by distance if "Near me" is selected
         if (province === "Near me" && userLocation) {
           serviceList.sort(
             (a, b) => (a.distance || Infinity) - (b.distance || Infinity)
           );
         }
-        // 🔍 ค้นหาข้อมูลเมื่อพิมพ์
         setFilteredServices(serviceList);
         setServices(serviceList);
       } catch (err) {
@@ -380,7 +380,6 @@ const Search = () => {
     [userLocation]
   );
 
-  // เปิดเส้นทางบน Google Maps หรือ Apple Maps
   const openDirections = useCallback((latitude, longitude) => {
     const scheme = Platform.select({
       ios: "maps:0,0?q=",
@@ -414,7 +413,7 @@ const Search = () => {
         }
         return null;
       })
-      .filter((service) => service && service.distance < 10) // คัดเฉพาะที่อยู่ในรัศมี 10 กม.
+      .filter((service) => service && service.distance < 10)
       .sort((a, b) => a.distance - b.distance);
 
     setFilteredServices(nearbyServices);
@@ -432,7 +431,6 @@ const Search = () => {
     </TouchableOpacity>
   );
 
-  // Enhanced search functionality
   const handleSearch = (text) => {
     setSearchText(text);
     const filtered = services.filter((service) =>
@@ -441,7 +439,6 @@ const Search = () => {
     setFilteredServices(filtered);
   };
 
-  // Custom Marker Component
   const CustomMarker = ({ service }) => {
     const isSelected = selectedMarker?.id === service.id;
     return (
@@ -508,7 +505,6 @@ const Search = () => {
     return R * c;
   };
 
-  // Render helpers
   const renderListView = () => (
     <ScrollView contentContainerStyle={styles.resultsContainer}>
       {isLoading ? (
@@ -535,10 +531,10 @@ const Search = () => {
                   {service.location}
                 </Text>
               </View>
-              {service?.distance && !isNaN(service.distance) && (
+              {service?.distance && (
                 <View style={styles.cardMetaContainer}>
                   <Text style={styles.cardDistance}>
-                    {parseFloat(service.distance).toFixed(1)} km away
+                    {service.distance} km away
                   </Text>
                 </View>
               )}
