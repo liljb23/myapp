@@ -6,8 +6,35 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
 import * as Location from 'expo-location';
+
+const updateCampaignReport = async ({ campaignId, serviceId, entrepreneurId, type }) => {
+  try {
+    if (!campaignId || !serviceId || !entrepreneurId || !type) {
+      console.log('Missing field:', { campaignId, serviceId, entrepreneurId, type });
+      return;
+    }
+    const reportRef = doc(FIREBASE_DB, 'CampaignReports', String(campaignId));
+    const updateData = {
+      updatedAt: serverTimestamp(),
+    };
+    if (type === 'impression') updateData.impressions = increment(1);
+    if (type === 'click') updateData.clicks = increment(1);
+    if (type === 'conversion') updateData.conversions = increment(1);
+
+    await setDoc(reportRef, {
+      campaignId,
+      serviceId,
+      entrepreneurId,
+      createdAt: serverTimestamp(),
+      ...updateData,
+    }, { merge: true });
+    console.log('✅ Firestore write success:', campaignId);
+  } catch (e) {
+    console.error('❌ Firestore write error:', e);
+  }
+};
 
 const Home = () => {
   const navigation = useNavigation();
@@ -71,9 +98,39 @@ const Home = () => {
 
         // Recommends
         const recommendCollectionRef = collection(FIREBASE_DB, 'CampaignSubscriptions');
-        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'waiting_payment'));
+        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'approved'));
         const recommendSnapshot = await getDocs(recommendQuery);
-        setRecommends(recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const recommendsRaw = recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const serviceIds = recommendsRaw.map(r => r.serviceId).filter(Boolean);
+        let recommendsWithService = [];
+        if (serviceIds.length > 0) {
+          const batchSize = 10;
+          let servicesMap = {};
+          for (let i = 0; i < serviceIds.length; i += batchSize) {
+            const batchIds = serviceIds.slice(i, i + batchSize);
+            const servicesQuery = query(
+              servicesCollectionRef,
+              where('__name__', 'in', batchIds)
+            );
+            const servicesSnapshot = await getDocs(servicesQuery);
+            servicesSnapshot.docs.forEach(doc => {
+              servicesMap[doc.id] = { id: doc.id, ...doc.data() };
+            });
+          }
+          recommendsWithService = recommendsRaw.map(r => ({
+            ...r,
+            ...servicesMap[r.serviceId],
+          }));
+
+          const seen = new Set();
+          recommendsWithService = recommendsWithService.filter(r => {
+            if (!r.serviceId) return false;
+            if (seen.has(r.serviceId)) return false;
+            seen.add(r.serviceId);
+            return true;
+          });
+        }
+        setRecommends(recommendsWithService);
 
         // Blog
         const blogsCollectionRef = collection(FIREBASE_DB, 'Blog');
@@ -258,7 +315,16 @@ const Home = () => {
           </ScrollView> */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {recommends.map(recommend => (
-              <RecommendCard key={recommend.id} {...recommend} />
+              <RecommendCard
+                key={recommend.id}
+                campaignId={recommend.campaignId || recommend.id}
+                serviceId={recommend.serviceId}
+                entrepreneurId={recommend.EntrepreneurId}
+                name={recommend.name}
+                category={recommend.category}
+                location={recommend.location}
+                image={recommend.image}
+              />
             ))}
           </ScrollView>
         </View>
@@ -481,27 +547,35 @@ const CategoryIcon = ({ title, emoji, onPress, isActive }) => (
   </TouchableOpacity>
 );
 
-const RecommendCard = ({ name, category, location,image  }) => (
-  <TouchableOpacity style={styles.recommendCard}>
-    <Image
-      source={{ uri: image }}
-      style={styles.recommendImage}
-    />
-    <View style={styles.recommendContent}>
-      <View style={styles.recommendHeader}>
-        <Text style={styles.recommendTitle} numberOfLines={2}>{name}</Text>
-        <TouchableOpacity style={styles.heartButton}>
-          <Feather name="heart" size={18} color="#666" />
-        </TouchableOpacity>
+const RecommendCard = ({ campaignId, serviceId, entrepreneurId, name, category, location, image }) => {
+  useEffect(() => {
+    console.log('Impression:', { campaignId, serviceId, entrepreneurId });
+    updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'impression' });
+  }, []);
+
+  const handleClick = () => {
+    updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'click' });
+  };
+
+  return (
+    <TouchableOpacity style={styles.recommendCard} onPress={handleClick}>
+      <Image source={{ uri: image }} style={styles.recommendImage} />
+      <View style={styles.recommendContent}>
+        <View style={styles.recommendHeader}>
+          <Text style={styles.recommendTitle} numberOfLines={2}>{name}</Text>
+          <TouchableOpacity style={styles.heartButton}>
+            <Feather name="heart" size={18} color="#666" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.recommendCategory}>({category})</Text>
+        <View style={styles.recommendLocation}>
+          <Feather name="map-pin" size={14} color="#666" />
+          <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
+        </View>
       </View>
-      <Text style={styles.recommendCategory}>({category})</Text>
-      <View style={styles.recommendLocation}>
-        <Feather name="map-pin" size={14} color="#666" />
-        <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 const BlogCard = ({ name, title, predescription, image }) => (
   <TouchableOpacity style={styles.blogCard} onPress={() => navigation.navigate('BlogDetail')} >
     <Image source={{ uri: image }} style={styles.blogImage} />
