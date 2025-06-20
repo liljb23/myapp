@@ -17,7 +17,9 @@ import { FIREBASE_DB, FIREBASE_AUTH } from './FirebaseConfig';
 import { Modal, FlatList } from 'react-native';
 
 const CampaignScreen = ({ route }) => {
-  const { serviceId } = route.params;
+  const params = route?.params || {};
+  const serviceId = params.serviceId;
+
   const navigation = useNavigation();
   const { user } = useAuth();
   const [services, setServices] = useState([]);
@@ -30,15 +32,17 @@ const CampaignScreen = ({ route }) => {
   useEffect(() => {
     const fetchUserServices = async () => {
       if (!user) return;
-      const q = collection(FIREBASE_DB, 'Services');
+      const q = query(
+        collection(FIREBASE_DB, 'Services'),
+        where('EntrepreneurId', '==', user.uid)
+      );
       const querySnapshot = await getDocs(q);
-      const userServices = [];
-      querySnapshot.forEach(doc => {
-        userServices.push({ id: doc.id, ...doc.data() });
-      });
+      const userServices = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       setServices(userServices);
 
-      // 👉 ถ้ามี route.params.service ให้ set เป็น selected
       if (navigation.getState().routes[navigation.getState().index].params?.service) {
         setSelectedService(navigation.getState().routes[navigation.getState().index].params.service);
       } else {
@@ -104,6 +108,16 @@ const CampaignScreen = ({ route }) => {
     );
   }
 
+  if (!serviceId) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red', fontSize: 16 }}>
+          Please select a service from "My Services" before viewing campaigns.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -119,7 +133,16 @@ const CampaignScreen = ({ route }) => {
         <TouchableOpacity style={[styles.tabButton, styles.activeTab]}>
           <Text style={styles.tabTextActive}>Create</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButtonDisabled} onPress={() => navigation.navigate('CampaignReportScreen')}>
+        <TouchableOpacity
+          style={styles.tabButtonDisabled}
+          onPress={() => {
+            if (selectedService) {
+              navigation.navigate('CampaignReportScreen', { serviceId: selectedService.id });
+            } else {
+              Alert.alert('กรุณาเลือกบริการก่อนดูรายงาน');
+            }
+          }}
+        >
           <Text style={styles.tabTextDisabled}>Report</Text>
         </TouchableOpacity>
       </View>
