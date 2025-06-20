@@ -10,30 +10,32 @@ import {
     Alert
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const Menu = ({ navigation }) => {
+    const { t } = useTranslation();
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [user, setUser] = useState(null);
 
     const menuItems = [
         {
             icon: 'user',
-            title: 'Edit Profile',
+            title: t('Edit Profile'),
             onPress: () => navigation.navigate('EditProfile')
         },
         {
             icon: 'heart',
-            title: 'Favorites',
+            title: t('Favorites'),
             onPress: () => navigation.navigate('Favorites')
         },
         {
             icon: 'globe',
-            title: 'Change Language',
+            title: t('Change Language'),
             onPress: () => navigation.navigate('LanguageSettings')
         },
         {
             icon: 'help-circle',
-            title: 'Help Center',
+            title: t('Help Center'),
             onPress: () => navigation.navigate('HelpCenter')
         }
     ];
