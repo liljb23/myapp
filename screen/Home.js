@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import * as Location from 'expo-location';
 
 const Home = () => {
   const navigation = useNavigation();
@@ -18,7 +19,38 @@ const Home = () => {
   const [mosques, setMosques] = useState([]);
   const [touristAttractions, setTouristAttractions] = useState([]);
   const [prayerPlaces, setPrayerPlaces] = useState([]);
-  
+  const [userLocation, setUserLocation] = useState(null);
+
+  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    function deg2rad(deg) {
+      return deg * (Math.PI / 180);
+    }
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c;
+    return d;
+  }
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setUserLocation(null);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation(location.coords);
+    })();
+  }, []);
+
   useEffect(() => {
     const unsubscribe = FIREBASE_AUTH.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -66,6 +98,29 @@ const Home = () => {
         const prayerSnapshot = await getDocs(prayerQuery);
         setPrayerPlaces(prayerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
+
+        const addDistanceAndSort = (list) => {
+          if (!userLocation) return list;
+          return list
+            .map(item => {
+              if (item.latitude && item.longitude) {
+                const distance = getDistanceFromLatLonInKm(
+                  userLocation.latitude,
+                  userLocation.longitude,
+                  Number(item.latitude),
+                  Number(item.longitude)
+                );
+                return { ...item, distance: `${distance.toFixed(2)} km`, _distanceValue: distance };
+              }
+              return { ...item, distance: '-', _distanceValue: Infinity };
+            })
+            .sort((a, b) => a._distanceValue - b._distanceValue);
+        };
+
+        setMosques(prev => addDistanceAndSort(prev));
+        setTouristAttractions(prev => addDistanceAndSort(prev));
+        setPrayerPlaces(prev => addDistanceAndSort(prev));
+
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -74,7 +129,7 @@ const Home = () => {
     };
 
     fetchData();
-  }, []);
+  }, [userLocation]);
 
   if (loading) {
     return (
