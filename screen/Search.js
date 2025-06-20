@@ -129,9 +129,9 @@ const Search = () => {
     switch (category?.toLowerCase()) {
       case "restaurant":
         return "restaurant";
-      case "Beauty & salon":
+      case "beauty & salon":
         return "scissors";
-      case "Resort & Hotel":
+      case "resort & hotel":
         return "home";
       case "tourist attraction":
         return "map";
@@ -556,23 +556,18 @@ const Search = () => {
         style={{ flex: 1 }}
         showsUserLocation={true}
         followsUserLocation={true}
-        region={{
-          latitude: region.latitude,
-          longitude: region.longitude,
-          latitudeDelta: zoomLevel,
-          longitudeDelta: zoomLevel,
+        region={region}
+        onRegionChangeComplete={(newRegion) => {
+          if (
+            Math.abs(region.latitude - newRegion.latitude) > 0.00001 ||
+            Math.abs(region.longitude - newRegion.longitude) > 0.00001 ||
+            Math.abs(region.latitudeDelta - newRegion.latitudeDelta) > 0.00001 ||
+            Math.abs(region.longitudeDelta - newRegion.longitudeDelta) > 0.00001
+          ) {
+            setRegion(newRegion);
+          }
         }}
-        onRegionChangeComplete={setRegion}
       >
-        {/* Zoom Controls */}
-        <View style={styles.zoomControls}>
-          <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
-            <Text style={styles.zoomButtonText}>+</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
-            <Text style={styles.zoomButtonText}>-</Text>
-          </TouchableOpacity>
-        </View>
         {/* 📍 Marker สำหรับตำแหน่งปัจจุบัน */}
         {userLocation && (
           <Marker coordinate={userLocation} title="You are here">
@@ -613,7 +608,6 @@ const Search = () => {
               title={service.name}
               description={service.category}
               onPress={() => {
-                console.log("Selected Marker:", service.name);
                 setSelectedPlace(service);
                 setSelectedMarker(service.id);
               }}
@@ -621,12 +615,21 @@ const Search = () => {
               {selectedMarker === service.id ? (
                 <FontAwesome name="map-marker" size={36} color="red" />
               ) : (
-                getCategoryIcon(service.category)
+                <Feather name={getCategoryIcon(service.category)} size={24} color="#014737" />
               )}
             </Marker>
           );
         })}
       </MapView>
+      {/* ย้าย Zoom Controls มานอก MapView */}
+      <View style={styles.zoomControls}>
+        <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
+          <Text style={styles.zoomButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
+          <Text style={styles.zoomButtonText}>-</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
