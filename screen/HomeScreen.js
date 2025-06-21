@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, Platform, SafeAreaView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from './AuthContext';
-
-
+import { useTranslation } from 'react-i18next';
 
 
 const HomeScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const handleCategoryPress = (category) => {
     navigation.navigate('CategoryServices', { category });
