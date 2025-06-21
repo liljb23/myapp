@@ -1,5 +1,4 @@
 // Import Screens
-
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,6 +10,8 @@ import { FIREBASE_AUTH, FIREBASE_DB } from './screen/FirebaseConfig';
 import { AuthProvider } from './screen/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
+import i18n from './screen/i18n';
+import { I18nextProvider } from 'react-i18next';
 
 // Import all screens
 import Register from './screen/Register';
@@ -37,6 +38,7 @@ import UploadSlipScreen from './screen/UploadSlipScreen';
 import NewServices from './screen/NewServices';
 import AdminScreen from './screen/AdminScreen';
 import AddPromotion from './screen/AddPromotion';
+import PromotionList from './screen/PromotionList';
 import EditPromotion from './screen/EditPromotion';
 import AddScreen from './screen/AddScreen';
 import NotificationScreen from './screen/NotificationScreen';
@@ -56,6 +58,7 @@ import EditService from './screen/EditService';
 import EditUserScreen from './screen/EditUserScreen';
 import AddServices from './screen/AddServices';
 import AddPromotionScreen from './screen/AddPromotionScreen';
+import './screen/i18n'; 
 
 // Create navigators
 const Stack = createStackNavigator();
@@ -74,8 +77,7 @@ const AuthNavigator = () => (
       headerTintColor: '#fff',
     }}
   >
-    <AuthStack.Screen name="HomeScreen" component={Home} options={{ headerShown: false }} />
-    <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
+    <AuthStack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />    <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
   </AuthStack.Navigator>
@@ -110,7 +112,7 @@ const GuestTabs = () => (
   >
     <Tab.Screen
       name="HomeTab"
-      component={Home}
+      component={HomeScreen}
       options={{ headerShown: false, title: 'Home' }}
     />
     <Tab.Screen name="DiscountTab" component={Discount} options={{ headerShown: false, title: 'Discount' }} />
@@ -310,6 +312,8 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="EditUserScreen" component={EditUserScreen} options={{ headerShown: false }} />
     <Stack.Screen name="AddServices" component={AddServices} />
     <Stack.Screen name="AddMapScreen" component={AddMapScreen} />
+
+   
   </Stack.Navigator>
 );
 
@@ -353,19 +357,21 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        {!user ? (
-          <GuestStackNavigator />
-        ) : role === "Admin" ? (
-          <AdminStackNavigator user={user} />
-        ) : role === "Entrepreneur" ? (
-          <EntrepreneurStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
-        ) : (
-          <GeneralUserStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
-        )}
-      </NavigationContainer>
-    </AuthProvider>
+    <I18nextProvider i18n={i18n}>
+      <AuthProvider>
+        <NavigationContainer>
+          {!user ? (
+            <GuestStackNavigator />
+          ) : role === "Admin" ? (
+            <AdminStackNavigator user={user} />
+          ) : role === "Entrepreneur" ? (
+            <EntrepreneurStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
+          ) : (
+            <GeneralUserStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
+          )}
+        </NavigationContainer>
+      </AuthProvider>
+    </I18nextProvider>
   );
 }
 
