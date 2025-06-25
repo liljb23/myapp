@@ -2,11 +2,10 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, Platform, SafeAreaView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from './AuthContext';
-
-
-
+import { useTranslation } from 'react-i18next';
 
 const HomeScreen = ({ navigation }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const handleCategoryPress = (category) => {
     navigation.navigate('CategoryServices', { category });
@@ -39,7 +38,7 @@ const HomeScreen = ({ navigation }) => {
             onPress={() => navigation.navigate('Search')}
           >
             <Feather name="search" size={20} color="#666" />
-            <Text style={styles.searchPlaceholderText}>Search...</Text>
+            <Text style={styles.searchPlaceholderText}>{t('searchPlaceholder')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -53,7 +52,7 @@ const HomeScreen = ({ navigation }) => {
               style={[styles.authButton, styles.loginButton]}
               onPress={() => navigation.navigate('Login-email')}
             >
-              <Text style={styles.authButtonText}>Login</Text>
+              <Text style={styles.authButtonText}>{t('login')}</Text>
             </TouchableOpacity>
 
             {/* ปุ่ม Register */}
@@ -61,19 +60,17 @@ const HomeScreen = ({ navigation }) => {
               style={[styles.authButton, styles.registerButton]}
               onPress={() => navigation.navigate('Register')}
             >
-              <Text style={styles.registerButtonText}>Register</Text>
+              <Text style={styles.registerButtonText}>{t('register')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
-
-
         {/* Recommends Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommends</Text>
+            <Text style={styles.sectionTitle}>{t('recommends')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -106,22 +103,22 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionTitle}>{t('categories')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <CategoryIcon title="Restaurant" emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })} />
-            <CategoryIcon title="Beauty & Salon" emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty salon' })} />
-            <CategoryIcon title="Resort & Hotel" emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })} />
-            <CategoryIcon title="Tourist Attraction" emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })} />
-            <CategoryIcon title="Mosque" emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })} />
+            <CategoryIcon title={t('restaurant')} emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })} />
+            <CategoryIcon title={t('beautySalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty salon' })} />
+            <CategoryIcon title={t('resortHotel')} emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })} />
+            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })} />
+            <CategoryIcon title={t('mosque')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })} />
           </ScrollView>
         </View>
 
         {/* Blog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Blog</Text>
+            <Text style={styles.sectionTitle}>{t('blog')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.blogCard}>
@@ -131,17 +128,17 @@ const HomeScreen = ({ navigation }) => {
             />
             <View style={styles.blogContent}>
               <View style={styles.blogTag}>
-                <Text style={styles.blogTagText}>Ramadan 2025</Text>
+                <Text style={styles.blogTagText}>{t('ramadan2025')}</Text>
               </View>
-              <Text style={styles.blogTitle}>A Complete Guide to Ramadan</Text>
-              <Text style={styles.blogDescription}>Learn about dates, traditions, and preparing for the holy month</Text>
+              <Text style={styles.blogTitle}>{t('ramadanGuideTitle')}</Text>
+              <Text style={styles.blogDescription}>{t('ramadanGuideDescription')}</Text>
             </View>
           </View>
         </View>
 
         {/* Mosque Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mosque near you</Text>
+          <Text style={styles.sectionTitle}>{t('mosqueNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <LocationCard
               title="Nurul Ihsan Mosque"
@@ -160,35 +157,32 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Tourist Attractions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tourist attractions</Text>
+          <Text style={styles.sectionTitle}>{t('touristAttractions')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <LocationCard
               title="Huai Thung Wildlife Breeding Center"
               type="Tourist attraction"
               distance="3.2 km"
               imageUrl="https://travelling-as-a-couple.com/wp-content/uploads/2022/05/22-05-02-14-03-04-138_deco.jpg?w=1024"
-
             />
             <LocationCard
               title="Camel Republic"
               type="Tourist attraction"
               distance="5.0 km"
               imageUrl="https://dynamic-media-cdn.tripadvisor.com/media/photo-o/07/64/1b/c8/getlstd-property-photo.jpg?w=1200&h=-1&s=1"
-
             />
           </ScrollView>
         </View>
 
         {/* Places of Prayer */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Places of prayer near you</Text>
+          <Text style={styles.sectionTitle}>{t('prayerPlacesNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <LocationCard
               title="Blueport Prayer Room"
               type="Prayer Space"
               distance="0.5 km"
               imageUrl="https://www.chillpainai.com/src/wewakeup/scoop/img_scoop/Jibby/Bluport/web.jpg"
-
             />
             <LocationCard
               title="PTT Station (Lung Theng)"
@@ -201,14 +195,13 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Discounts and Benefits */}
         <View style={[styles.section, styles.lastSection]}>
-          <Text style={styles.sectionTitle}>Discounts and benefits</Text>
+          <Text style={styles.sectionTitle}>{t('discountsAndBenefits')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <PromotionCard
               discount="15%"
               title="Minimum of 300 baht"
               description="Discount when purchasing a minimum of 300 baht"
               expiryDate="Valid until 15 Apr"
-
             />
             <PromotionCard
               discount="₿80"
@@ -250,8 +243,6 @@ const LocationCard = ({ title, type, distance, imageUrl }) => (
     </View>
   </TouchableOpacity>
 );
-
-
 
 const CategoryIcon = ({ title, emoji, onPress }) => (
   <TouchableOpacity onPress={onPress} style={styles.categoryItem}>
@@ -316,8 +307,6 @@ const NavItem = ({ title, iconName, active, onPress }) => (
     <Text style={[styles.navText, active && styles.navTextActive]}>{title}</Text>
   </TouchableOpacity>
 );
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -750,6 +739,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'white',
     opacity: 0.6,
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  navItemActive: {
+    backgroundColor: '#014737',
+  },
+  navText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 10,
+  },
+  navTextActive: {
+    color: '#FDCB02',
+    fontWeight: '600',
+  },
+  lastSection: {
+    marginBottom: 0,
   },
 });
 

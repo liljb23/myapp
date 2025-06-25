@@ -225,21 +225,21 @@ const AddServices = ({ navigation }) => {
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Restaurant' && styles.selectedServiceType]}
           onPress={() => setCategory('Restaurant')}>
-          <Image source={require('../png/dish.png')} style={styles.serviceTypeIcon} />
+          <Image source={require('../assets/dish.png')} style={styles.serviceTypeIcon} />
           <Text style={styles.serviceTypeText}>Restaurant</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Beauty & Salon' && styles.selectedServiceType]}
           onPress={() => setCategory('Beauty & Salon')}>
-          <Image source={require('../png/barber-shop.png')} style={styles.serviceTypeIcon} />
+          <Image source={require('../assets/barber-shop.png')} style={styles.serviceTypeIcon} />
           <Text style={styles.serviceTypeText}>Beauty & Salon</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Resort & Hotel' && styles.selectedServiceType]}
           onPress={() => setCategory('Resort & Hotel')}>
-          <Image source={require('../png/resort.png')} style={styles.serviceTypeIcon} />
+          <Image source={require('../assets/resort.png')} style={styles.serviceTypeIcon} />
           <Text style={styles.serviceTypeText}>Resort & Hotel</Text>
         </TouchableOpacity>
       </View>

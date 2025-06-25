@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 
 const EntrepreneurHome = () => {
@@ -59,6 +59,30 @@ const EntrepreneurHome = () => {
     navigation.navigate('CampaignScreen', { serviceId });
   };
 
+  const handleDelete = (userId) => {
+    Alert.alert(
+      'Delete Entrepreneur',
+      'Are you sure you want to delete this entrepreneur?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(FIREBASE_DB, 'user', userId));
+              setServices(services.filter(u => u.id !== userId));
+              Alert.alert('Entrepreneur deleted');
+            } catch (error) {
+              console.error('Error deleting entrepreneur:', error);
+              Alert.alert('Failed to delete entrepreneur');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -75,7 +99,7 @@ const EntrepreneurHome = () => {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Services</Text>
+        <Text style={styles.headerTitle}>My Services</Text>
           <Text style={styles.quantityText}>Total: {services.length}</Text>
         </View>
         <TouchableOpacity onPress={handleAddService}>
@@ -84,27 +108,27 @@ const EntrepreneurHome = () => {
       </View>
 
       {/* Content */}
-      {services.length === 0 ? (
+        {services.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="business-outline" size={50} color="#999" />
           <Text style={styles.emptyText}>No services found</Text>
           <Text style={styles.emptySubText}>Tap the + button to add your first service</Text>
-        </View>
-      ) : (
+          </View>
+        ) : (
         <ScrollView style={styles.content}>
           {services.map((service) => (
             <View key={service.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.imageContainer}>
-                  <Image source={{ uri: service.image }} style={styles.serviceImage} />
+              <Image source={{ uri: service.image }} style={styles.serviceImage} />
                 </View>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.serviceLocation}>{service.location}</Text>
-                  <View style={styles.ratingContainer}>
-                    <Text style={styles.ratingText}>⭐ {service.rating || 'N/A'}</Text>
-                    <Text style={styles.reviewCount}>({service.reviews || 0} reviews)</Text>
-                  </View>
+              <View style={styles.serviceInfo}>
+                <Text style={styles.serviceName}>{service.name}</Text>
+                <Text style={styles.serviceLocation}>{service.location}</Text>
+                <View style={styles.ratingContainer}>
+                  <Text style={styles.ratingText}>⭐ {service.rating || 'N/A'}</Text>
+                  <Text style={styles.reviewCount}>({service.reviews || 0} reviews)</Text>
+                </View>
                 </View>
               </View>
 
@@ -126,26 +150,34 @@ const EntrepreneurHome = () => {
               </View>
 
               <View style={styles.cardFooter}>
-                <TouchableOpacity
+                  <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => handleEditService(service)}
-                >
+                    onPress={() => handleEditService(service)}
+                  >
                   <Ionicons name="create-outline" size={20} color="#002B28" />
                   <Text style={styles.actionButtonText}>Edit</Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
+                  <TouchableOpacity
                   style={[styles.actionButton, styles.viewButton]}
-                  onPress={() => handleViewCampaigns(service.id)}
-                >
+                    onPress={() => handleViewCampaigns(service.id)}
+                  >
                   <Ionicons name="pricetag-outline" size={20} color="#002B28" />
                   <Text style={styles.actionButtonText}>Campaigns</Text>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ marginTop: 10, backgroundColor: '#ffeaea', padding: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' }}
+                    onPress={() => handleDelete(service.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#D11A2A" />
+                    <Text style={{ color: '#D11A2A', marginLeft: 5 }}>Delete</Text>
+                  </TouchableOpacity>
               </View>
             </View>
           ))}
         </ScrollView>
-      )}
+        )}
 
       {/* Bottom Tab */}
       <View style={styles.tabBar}>

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
 
@@ -17,26 +18,54 @@ export default function PromotionQuantityScreen() {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPromotions = async () => {
-      try {
-        const snap = await getDocs(collection(FIREBASE_DB, 'promotions'));
-        const promotionsList = snap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+  const fetchPromotions = async () => {
+    try {
+      setLoading(true);
+      const snap = await getDocs(collection(FIREBASE_DB, 'promotions'));
+      const promotionsList = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-        console.log('✅ Promotions:', promotionsList);
-        setPromotions(promotionsList);
-      } catch (e) {
-        console.error('🔥 Error fetching promotions:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
+      console.log('✅ Promotions:', promotionsList);
+      setPromotions(promotionsList);
+    } catch (e) {
+      console.error('🔥 Error fetching promotions:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchPromotions();
-  }, []);
+  // Use useFocusEffect to reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchPromotions();
+    }, [])
+  );
+
+  const handleDelete = async (promoId) => {
+    Alert.alert(
+      'Delete Promotion',
+      'Are you sure you want to delete this promotion?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(FIREBASE_DB, 'promotions', promoId));
+              setPromotions(promotions.filter(promo => promo.id !== promoId));
+              Alert.alert('Success', 'Promotion deleted successfully');
+            } catch (error) {
+              console.error('Error deleting promotion:', error);
+              Alert.alert('Error', 'Failed to delete promotion');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -64,25 +93,47 @@ export default function PromotionQuantityScreen() {
           data={promotions}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 20 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.title}>ชื่อโปรโมชั่น: {item.name || 'N/A'}</Text>
-              <Text style={styles.description}>รายละเอียด: {item.description || 'N/A'}</Text>
-              <Text style={styles.discount}>ส่วนลด: {item.discount ? `${item.discount}%` : 'N/A'}</Text>
-              <Text style={styles.validUntil}>หมดอายุ: {item.validUntil || 'N/A'}</Text>
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const formattedValidUntil = item.validUntil 
+              ? new Date(item.validUntil.seconds * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+              : 'N/A';
+
+            return (
+              <View style={styles.card}>
+                <Text style={styles.title}>ชื่อโปรโมชั่น: {item.name || 'N/A'}</Text>
+                <Text style={styles.description}>รายละเอียด: {item.description || 'N/A'}</Text>
+                <Text style={styles.discount}>ส่วนลด: {item.discount ? `${item.discount}%` : 'N/A'}</Text>
+                <Text style={styles.validUntil}>หมดอายุ: {formattedValidUntil}</Text>
+                <View style={styles.cardActions}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => navigation.navigate('EditPromotion', { promoId: item.id, existingData: item })}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#002B28" />
+                    <Text style={styles.actionButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#D11A2A" />
+                    <Text style={[styles.actionButtonText, { color: '#D11A2A' }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }}
         />
       )}
 
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
+          <Ionicons name="home-outline" size={24} color="#FFD700" />
+          <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddScreen')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddPromotionScreen')}>
           <Ionicons name="add" size={24} color="white" />
           <Text style={styles.tabText}>Add</Text>
         </TouchableOpacity>
@@ -150,6 +201,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 15,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  actionButtonText: {
+    marginLeft: 5,
+    color: '#002B28',
+    fontWeight: 'bold',
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#002B28',
@@ -159,6 +231,11 @@ const styles = StyleSheet.create({
   tabItem: { alignItems: 'center' },
   tabText: {
     color: 'white',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  tabTextActive: {
+    color: '#FFD700',
     fontSize: 12,
     marginTop: 3,
   },

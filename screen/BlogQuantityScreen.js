@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -10,6 +10,7 @@ import {
   View,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
 
@@ -36,6 +37,30 @@ export default function BlogQuantityScreen() {
     fetchBlogs();
   }, []);
 
+  const handleDelete = (blogId) => {
+    Alert.alert(
+      'Delete Blog',
+      'Are you sure you want to delete this blog?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(FIREBASE_DB, 'Blog', blogId));
+              setBlogs(blogs.filter(b => b.id !== blogId));
+              Alert.alert('Blog deleted');
+            } catch (error) {
+              console.error('Error deleting blog:', error);
+              Alert.alert('Failed to delete blog');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderBlogCard = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -51,6 +76,24 @@ export default function BlogQuantityScreen() {
           <Text style={styles.blogTitle}>{item.title || 'N/A'}</Text>
           <Text style={styles.blogPre}>{item.predescription || 'N/A'}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.eyeBtn}
+          onPress={() => navigation.navigate('BlogList', { blogId: item.id })}
+        >
+          <Ionicons name="eye-outline" size={28} color="#014737" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => navigation.navigate('EditBlog', { blog: item })}
+        >
+          <Ionicons name="create-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => handleDelete(item.id)}
+        >
+          <Ionicons name="trash-outline" size={24} color="#D11A2A" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -89,8 +132,8 @@ export default function BlogQuantityScreen() {
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
+          <Ionicons name="home-outline" size={24} color="#FFD700" />
+          <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AddScreen')}>
           <Ionicons name="add" size={24} color="white" />
@@ -190,5 +233,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     marginTop: 3,
+  },
+  tabTextActive: {
+    color: '#FFD700',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  eyeBtn: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editBtn: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteBtn: {
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 

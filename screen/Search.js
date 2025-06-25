@@ -27,8 +27,10 @@ import {
 } from "@expo/vector-icons";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
+import { useTranslation } from 'react-i18next';
 
 const Search = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute();
   const initialCategory = route.params?.category || null;
@@ -225,7 +227,8 @@ const Search = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const querySnapshot = await FIREBASE_DB.collection("Services").get();
+        const servicesCol = collection(FIREBASE_DB, 'Services');
+        const querySnapshot = await getDocs(servicesCol);
         const serviceList = [];
         querySnapshot.forEach((doc) => {
           serviceList.push({ id: doc.id, ...doc.data() });
@@ -245,20 +248,18 @@ const Search = () => {
   // 🚀 โหลดข้อมูลจาก Firestore ตาม Category ที่เลือก
   const fetchServices = async (category) => {
     try {
-      let servicesCollection = FIREBASE_DB.collection("Services"); // ✅ ตรวจสอบ collection(db, "Services") ถูกต้อง
-
-      // 🔥 ใช้ query และ where ให้ถูกต้อง
-      let q =
-        category !== "All"
-          ? FIREBASE_DB.collection("Services").where("category", "==", category)
-          : servicesCollection;
-
-      const snapshot = await q.get();
+      const servicesCol = collection(FIREBASE_DB, 'Services');
+      let q;
+      if (category !== "All") {
+        q = query(servicesCol, where('category', '==', category));
+      } else {
+        q = servicesCol;
+      }
+      const snapshot = await getDocs(q);
       const serviceList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-
       setServices(serviceList);
       setFilteredServices(serviceList);
     } catch (error) {
@@ -331,23 +332,23 @@ const Search = () => {
     async (province, category) => {
       setIsLoading(true);
       try {
-        let servicesCollection = FIREBASE_DB.collection("Services");
+        let servicesCollection = collection(FIREBASE_DB, 'Services');
         let queryConstraints = [];
 
         if (province !== "Near me") {
-          queryConstraints.push(FIREBASE_DB.collection("Services").where("province", "==", province));
+          queryConstraints.push(query(servicesCollection, where('province', '==', province)));
         }
 
         if (category !== "All") {
-          queryConstraints.push(FIREBASE_DB.collection("Services").where("category", "==", category));
+          queryConstraints.push(query(servicesCollection, where('category', '==', category)));
         }
 
         const q =
           queryConstraints.length > 0
-            ? FIREBASE_DB.collection("Services").where(...queryConstraints)
+            ? query(servicesCollection, where(...queryConstraints))
             : servicesCollection;
 
-        const snapshot = await q.get();
+        const snapshot = await getDocs(q);
         const serviceList = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -690,7 +691,7 @@ const Search = () => {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search..."
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor="#666"
             value={searchText}
             onChangeText={setSearchText}
@@ -735,7 +736,7 @@ const Search = () => {
         >
           <Feather name="map-pin" size={16} color="#014737" />
           <Text style={styles.filterButtonText}>
-            Sort by: {selectedProvince}
+            {t('sortBy', { province: selectedProvince })}
           </Text>
           <Feather name="chevron-down" size={16} color="#014737" />
         </TouchableOpacity>
@@ -781,7 +782,7 @@ const Search = () => {
                   navigation.navigate("Detail", { place: selectedPlace })
                 }
               >
-                <Text style={styles.detailsText}>Details</Text>
+                <Text style={styles.detailsText}>{t('details')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.directionsButton}
@@ -792,7 +793,7 @@ const Search = () => {
                   )
                 }
               >
-                <Text style={styles.directionsText}>Directions</Text>
+                <Text style={styles.directionsText}>{t('directions')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -809,7 +810,7 @@ const Search = () => {
       <Modal visible={provinceModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Province</Text>
+            <Text style={styles.modalTitle}>{t('selectProvince')}</Text>
             <ScrollView>
               <TouchableOpacity
                 style={styles.modalOption}
@@ -818,7 +819,7 @@ const Search = () => {
                   setProvinceModalVisible(false);
                 }}
               >
-                <Text style={styles.optionText}>Near me</Text>
+                <Text style={styles.optionText}>{t('nearMe')}</Text>
               </TouchableOpacity>
               {Object.keys(provinces).map((province) => (
                 <TouchableOpacity
@@ -837,7 +838,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setProvinceModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -847,7 +848,7 @@ const Search = () => {
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Category</Text>
+            <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
             <ScrollView>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -873,7 +874,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setCategoryModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -49,23 +49,16 @@ export default function NotiAdmin({ navigation }) {
       </View>
       <View style={styles.info}>
         <Text style={styles.amount}>
-          {item.amount ? `฿${item.amount}` : 'No amount'}
+          {item.price ? `฿${item.price}` : 'No price'}
         </Text>
-        <Text style={styles.status}>
-          Status: {item.status || 'pending'}
-        </Text>
-        <Text style={styles.date}>
-          {item.verifiedAt
-            ? new Date(item.verifiedAt.seconds * 1000).toLocaleString()
-            : 'No date'}
+        <Text style={styles.label}>
+          EntrepreneurId: <Text style={styles.value}>{item.EntrepreneurId || '-'}</Text>
         </Text>
       </View>
       <TouchableOpacity
         style={styles.viewBtn}
         onPress={() => {
-          if (item.slipUrl) {
-            navigation.navigate('SlipDetail', { slipUrl: item.slipUrl });
-          }
+          navigation.navigate('SlipDetail', { slip: item });
         }}
       >
         <Ionicons name="eye-outline" size={24} color="#014737" />
@@ -159,8 +152,16 @@ const styles = StyleSheet.create({
   image: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#eee' },
   info: { flex: 1 },
   amount: { fontWeight: 'bold', fontSize: 16, color: '#014737' },
-  status: { color: '#666', marginTop: 2 },
-  date: { color: '#999', fontSize: 12, marginTop: 2 },
+  label: {
+    fontWeight: 'bold',
+    color: '#014737',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  value: {
+    fontWeight: 'normal',
+    color: '#333',
+  },
   viewBtn: { padding: 8 },
   tabBar: {
     flexDirection: 'row',

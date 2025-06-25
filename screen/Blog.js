@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 
 const Blog = ({ navigation }) => {
+  const { t } = useTranslation();
   const [favorites, setFavorites] = useState([]);
 
   const toggleFavorite = (id) => {
@@ -47,7 +49,7 @@ const Blog = ({ navigation }) => {
       </View>
 
       {/* Title */}
-      <Text style={styles.pageTitle}>Blog</Text>
+      <Text style={styles.pageTitle}>{t('blog')}</Text>
 
       {/* Blog List */}
       <ScrollView>
@@ -69,7 +71,7 @@ const Blog = ({ navigation }) => {
                 style={styles.readMoreButton}
                 onPress={() => navigation.navigate('BlogDetail', { blog: item })}
                 >
-                  <Text style={styles.readMoreText}>Read More</Text>
+                  <Text style={styles.readMoreText}>{t('readMore')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
@@ -88,22 +90,22 @@ const Blog = ({ navigation }) => {
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <NavItem
-          title="Home"
+          title={t('home')}
           iconName="home"
           onPress={() => navigation.navigate("Home" )} 
         />
         <NavItem
-          title="Discount"
+          title={t('discount')}
           iconName="percent"
           onPress={() => navigation.navigate("Discount")}
         />
         <NavItem
-          title="Search"
+          title={t('search')}
           iconName="map-pin"
           onPress={() => navigation.navigate("Search")}
         />
         <NavItem
-          title="Blog"
+          title={t('blog')}
           iconName="book"
           onPress={() => navigation.navigate("Blog")}
           active

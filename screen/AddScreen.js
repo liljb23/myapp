@@ -8,8 +8,8 @@ export default function AddScreen() {
 
   const data = [
     { label: 'Add Service', route: 'AddServiceScreen' },
-    { label: 'Add Blog', route: 'AddBlog' },
-    { label: 'Add Promotion', route: 'AddPromotion' },
+    { label: 'Add Blog', route: 'BlogList' },
+    { label: 'Add Promotion', route: 'AddPromotionScreen' },
   ];
 
   return (

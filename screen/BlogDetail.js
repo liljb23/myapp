@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const BlogDetail = ({ route, navigation }) => {
+    const { t } = useTranslation();
     const { blog } = route.params;
 
     return (
@@ -12,7 +14,7 @@ const BlogDetail = ({ route, navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Feather name="chevron-left" size={45} color="white" />
                 </TouchableOpacity>
-                <Text style={styles.pageTitle}>Blog</Text>
+                <Text style={styles.pageTitle}>{t('blog')}</Text>
             </View>
 
             {/* Blog Content */}
@@ -22,12 +24,12 @@ const BlogDetail = ({ route, navigation }) => {
                     <Text style={styles.blogTitle}>{blog.title}</Text>
                     <View style={styles.reviewContainer}>
                         <Feather name="eye" size={16} color="gray" />
-                        <Text style={styles.reviewText}>{blog.reviews} 10 Reviews</Text>
+                        <Text style={styles.reviewText}>{t('reviews', { count: 10 })}</Text>
                     </View>
                     {/* Divider Line */}
                     <View style={styles.divider} />
                     <TouchableOpacity style={styles.aboutButton}>
-                        <Text style={styles.aboutButtonText}>About Us.</Text>
+                        <Text style={styles.aboutButtonText}>{t('aboutUs')}</Text>
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.blogText}>{blog.fullText}</Text>

@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
 const DiscountDetail = ({ route }) => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { discount } = route.params;
 
@@ -51,8 +53,8 @@ const DiscountDetail = ({ route }) => {
           <Text style={styles.restaurantName}>{discount.name}</Text>
           
           <View style={styles.discountInfo}>
-            <Text style={styles.discountText}>Discount <Text style={styles.discountAmount}>{discount.discount}</Text></Text>
-            <Text style={styles.expiry}>Expires in {discount.expiry}</Text>
+            <Text style={styles.discountText}>{t('discountAmount', { amount: discount.discount })}</Text>
+            <Text style={styles.expiry}>{t('expiresIn', { date: discount.expiry })}</Text>
           </View>
 
           <Text style={styles.description}>
@@ -70,7 +72,7 @@ const DiscountDetail = ({ route }) => {
           disabled={isUsed}
         >
           <Text style={[styles.useButtonText, isUsed && styles.usedButtonText]}>
-            {isUsed ? "Discount Used" : "Use Discount"}
+            {isUsed ? t('discountUsed') : t('useDiscount')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -140,11 +142,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#063c2f',
-  },
-  discountAmount: {
-    color: '#FDCB02',
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   expiry: {
     fontSize: 14,

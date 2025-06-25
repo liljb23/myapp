@@ -25,7 +25,7 @@ export default function BlogList({ navigation }) {
   const [filteredBlogs, setFilteredBlogs] = useState([]);
 
   const fetchBlogs = async () => {
-    const q = query(collection(db, 'Blog'), orderBy('createdAt', 'desc'));
+    const q = query(collection(FIREBASE_DB, 'Blog'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     setBlogs(list);
@@ -55,7 +55,7 @@ export default function BlogList({ navigation }) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDoc(doc(db, 'Blog', id));
+            await deleteDoc(doc(FIREBASE_DB, 'Blog', id));
             fetchBlogs(); // reload after delete
             Alert.alert('✅ Blog deleted');
           } catch (error) {
@@ -83,6 +83,13 @@ export default function BlogList({ navigation }) {
         </View>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        onPress={() => navigation.navigate('EditBlog', { blog: item })}
+        style={styles.editBtn}
+      >
+        <Text style={styles.editText}>✏️</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
         <Text style={styles.deleteText}>🗑️</Text>
       </TouchableOpacity>
@@ -91,7 +98,7 @@ export default function BlogList({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Blog List</Text>
+      <Text style={styles.header}>Blogs</Text>
 
       <TextInput
         style={styles.searchInput}
@@ -169,5 +176,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  editBtn: {
+    padding: 5,
+    marginLeft: 5,
+  },
+  editText: {
+    fontSize: 20,
+    color: '#007AFF',
   },
 });

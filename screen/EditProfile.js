@@ -15,8 +15,10 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FIREBASE_AUTH, FIREBASE_DB, FIREBASE_STORAGE } from './FirebaseConfig';
 import { updateProfile } from 'firebase/auth';
+import { useTranslation } from 'react-i18next';
 
 const EditProfile = ({ navigation }) => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState({
     displayName: '',
@@ -54,7 +56,7 @@ const EditProfile = ({ navigation }) => {
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
-        Alert.alert('Error', 'Failed to load user data');
+        Alert.alert(t('error'), t('errorFailedToLoadUserData'));
       }
     };
 
@@ -75,7 +77,7 @@ const EditProfile = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert(t('error'), t('errorFailedToPickImage'));
     }
   };
 
@@ -91,13 +93,13 @@ const EditProfile = ({ navigation }) => {
       return downloadURL;
     } catch (error) {
       console.error('Error uploading image:', error);
-      throw new Error('Failed to upload image');
+      throw new Error(t('errorFailedToUploadImage'));
     }
   };
 
   const handleSave = async () => {
     if (!userData.displayName.trim()) {
-      Alert.alert('Error', 'Please enter a display name');
+      Alert.alert(t('error'), t('errorPleaseEnterDisplayName'));
       return;
     }
 
@@ -124,11 +126,11 @@ const EditProfile = ({ navigation }) => {
         updatedAt: new Date(),
       });
 
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert(t('success'), t('successProfileUpdated'));
       navigation.goBack();
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      Alert.alert(t('error'), t('errorFailedToUpdateProfile'));
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ const EditProfile = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <Text style={styles.headerTitle}>{t('editProfile')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -164,17 +166,17 @@ const EditProfile = ({ navigation }) => {
 
       <View style={styles.form}>
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Display Name</Text>
+          <Text style={styles.label}>{t('displayName')}</Text>
           <TextInput
             style={styles.input}
             value={userData.displayName}
             onChangeText={(text) => setUserData({ ...userData, displayName: text })}
-            placeholder="Enter your name"
+            placeholder={t('placeholderEnterYourName')}
           />
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('email')}</Text>
           <TextInput
             style={[styles.input, styles.disabledInput]}
             value={userData.email}
@@ -183,12 +185,12 @@ const EditProfile = ({ navigation }) => {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Phone</Text>
+          <Text style={styles.label}>{t('phone')}</Text>
           <TextInput
             style={styles.input}
             value={userData.phone}
             onChangeText={(text) => setUserData({ ...userData, phone: text })}
-            placeholder="Enter your phone number"
+            placeholder={t('placeholderEnterPhoneNumber')}
             keyboardType="phone-pad"
           />
         </View>
@@ -201,7 +203,7 @@ const EditProfile = ({ navigation }) => {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            <Text style={styles.saveButtonText}>{t('saveChanges')}</Text>
           )}
         </TouchableOpacity>
       </View>

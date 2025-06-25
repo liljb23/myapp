@@ -10,9 +10,11 @@ import {   View,
   ScrollView} from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 //import firestore from '@react-native-firebase/firestore';
 
 const Favorites = () => {
+    const { t } = useTranslation();
     const navigation = useNavigation();
   return (
     <View style={styles.container}> 
@@ -23,7 +25,7 @@ const Favorites = () => {
         >
           <Feather name="chevron-left" size={30} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Favorites</Text>
+        <Text style={styles.headerTitle}>{t('favorites')}</Text>
       </View>
       
    </View>

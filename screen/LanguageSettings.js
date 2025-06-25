@@ -12,26 +12,27 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-const languages = [
-  { 
-    code: 'th', 
-    name: 'ไทย (Thai)', 
-    //flag: require('../assets/thai.png')
-  },
-  { 
-    code: 'en', 
-    name: 'English', 
-    //flag: require('../assets/usa.png')
-  },
-  { 
-    code: 'ar', 
-    name: 'العربية (Arabic)', 
-    //flag: require('../assets/united-arab-emirates.png')
-  }
-];
-
 const LanguageSettings = ({ navigation }) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  const languages = [
+    { 
+      code: 'th', 
+      name: t('languageThai'), 
+      flag: require('../assets/thai.png')
+    },
+    { 
+      code: 'en', 
+      name: t('languageEnglish'), 
+      flag: require('../assets/usa.png')
+    },
+    { 
+      code: 'ar', 
+      name: t('languageArabic'), 
+      flag: require('../assets/united-arab-emirates.png')
+    }
+  ];
+
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
 
   // ✅ โหลดค่าภาษาที่เคยเลือกไว้จาก Storage
@@ -53,7 +54,7 @@ const LanguageSettings = ({ navigation }) => {
       setSelectedLanguage(languageCode); // ✅ อัพเดท UI
       navigation.goBack(); // ✅ กลับไปหน้าเดิม
     } catch (error) {
-      console.error('Error changing language', error);
+      console.error(t('errorChangingLanguage'), error);
     }
   };
 
@@ -66,7 +67,7 @@ const LanguageSettings = ({ navigation }) => {
         >
           <Feather name="chevron-left" size={33} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Change Language</Text>
+        <Text style={styles.headerTitle}>{t('changeLanguage')}</Text>
       </View>
 
       <View style={styles.languageList}>

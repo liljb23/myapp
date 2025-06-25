@@ -6,8 +6,11 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
 const Home = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,31 +37,37 @@ const Home = () => {
         setLoading(true);
 
         // ดึงข้อมูล Services
-        const servicesSnapshot = await FIREBASE_DB.collection('Services').get();
+        const servicesCol = collection(FIREBASE_DB, 'Services');
+        const servicesSnapshot = await getDocs(servicesCol);
         setServices(servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // ดึงเฉพาะ Services ที่เป็น Recommend
-        const recommendQuery = FIREBASE_DB.collection('CampaignSubscriptions').where('status', '==', 'waiting_payment');
-        const recommendSnapshot = await recommendQuery.get();
+        const recommendCol = collection(FIREBASE_DB, 'CampaignSubscriptions');
+        const recommendQuery = query(recommendCol, where('status', '==', 'waiting_payment'));
+        const recommendSnapshot = await getDocs(recommendQuery);
         setRecommends(recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // ดึงข้อมูล Blog
-        const blogsSnapshot = await FIREBASE_DB.collection('Blog').get();
+        const blogsCol = collection(FIREBASE_DB, 'Blog');
+        const blogsSnapshot = await getDocs(blogsCol);
         setBlogs(blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // 🔹 ดึงข้อมูล Mosques
-        const mosqueQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Mosque');
-        const mosqueSnapshot = await mosqueQuery.get();
+        const mosqueCol = collection(FIREBASE_DB, 'Services');
+        const mosqueQuery = query(mosqueCol, where('category', '==', 'Mosque'));
+        const mosqueSnapshot = await getDocs(mosqueQuery);
         setMosques(mosqueSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // 🔹 ดึงข้อมูล Tourist Attractions
-        const touristQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Tourist attraction');
-        const touristSnapshot = await touristQuery.get();
+        const touristCol = collection(FIREBASE_DB, 'Services');
+        const touristQuery = query(touristCol, where('category', '==', 'Tourist attraction'));
+        const touristSnapshot = await getDocs(touristQuery);
         setTouristAttractions(touristSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
         // 🔹 ดึงข้อมูล Places of Prayer
-        const prayerQuery = FIREBASE_DB.collection('Services').where('category', '==', 'Prayer Space');
-        const prayerSnapshot = await prayerQuery.get();
+        const prayerCol = collection(FIREBASE_DB, 'Services');
+        const prayerQuery = query(prayerCol, where('category', '==', 'Prayer Space'));
+        const prayerSnapshot = await getDocs(prayerQuery);
         setPrayerPlaces(prayerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
       } catch (error) {
@@ -108,7 +117,7 @@ const Home = () => {
              onPress={() => navigation.navigate('Search')}
            >
              <Feather name="search" size={20} color="#666" />
-             <Text style={styles.searchPlaceholderText}>Search...</Text>
+             <Text style={styles.searchPlaceholderText}>{t('searchPlaceholder')}</Text>
            </TouchableOpacity>
         </View>
       </View>
@@ -119,7 +128,7 @@ const Home = () => {
           // 🔹 ถ้าผู้ใช้ล็อกอินอยู่
           <View style={styles.userSection}>
             <View>
-            <Text style={{ fontSize: 18 }}>Hello, {user.username || user.email}</Text>
+            <Text style={{ fontSize: 18 }}>{t('helloUser', { name: user.username || user.email })}</Text>
             <Text style={styles.userEmail}>{user.email}</Text>
             </View>
             <View style={styles.userActions}>
@@ -138,10 +147,10 @@ const Home = () => {
           // 🔹 ถ้ายังไม่ล็อกอิน แสดงปุ่มสมัครและล็อกอิน
           <View style={styles.authButtons}>
             <TouchableOpacity style={[styles.authButton, styles.loginButton]} onPress={() => navigation.navigate('Login-email')}>
-              <Text style={styles.authButtonText}>Login</Text>
+              <Text style={styles.authButtonText}>{t('login')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.authButton, styles.registerButton]} onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerButtonText}>Register</Text>
+              <Text style={styles.registerButtonText}>{t('register')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -167,9 +176,9 @@ const Home = () => {
         {/* Recommends Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommends</Text>
+            <Text style={styles.sectionTitle}>{t('recommends')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {/* <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -207,22 +216,22 @@ const Home = () => {
 
         {/* Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionTitle}>{t('categories')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <CategoryIcon title="Restaurant" emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
-            <CategoryIcon title="Beauty & Salon" emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
-            <CategoryIcon title="Resort & Hotel" emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
-            <CategoryIcon title="Tourist Attraction" emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
-            <CategoryIcon title="Mosque" emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
+            <CategoryIcon title={t('restaurant')} emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
+            <CategoryIcon title={t('beautySalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
+            <CategoryIcon title={t('resortHotel')} emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
+            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
+            <CategoryIcon title={t('mosque')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
           </ScrollView>
         </View>
 
         {/* Blog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Blog</Text>
+            <Text style={styles.sectionTitle}>{t('blog')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {blogs.map(blog => (
@@ -245,7 +254,7 @@ const Home = () => {
 
         {/* Mosque Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mosque near you</Text>
+          <Text style={styles.sectionTitle}>{t('mosqueNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {mosques.map(mosque => (
               <LocationCard key={mosque.id} {...mosque} />
@@ -272,7 +281,7 @@ const Home = () => {
 
         {/* Tourist Attractions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tourist attractions</Text>
+          <Text style={styles.sectionTitle}>{t('touristAttractions')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {touristAttractions.map(attraction => (
               <LocationCard key={attraction.id} {...attraction} />
@@ -302,7 +311,7 @@ const Home = () => {
 
         {/* Places of Prayer */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Places of prayer near you</Text>
+          <Text style={styles.sectionTitle}>{t('prayerPlacesNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {prayerPlaces.map(place => (
               <LocationCard key={place.id} {...place} />
@@ -331,7 +340,7 @@ const Home = () => {
 
         {/* Discounts and Benefits */}
         <View style={[styles.section, styles.lastSection]}>
-          <Text style={styles.sectionTitle}>Discounts and benefits</Text>
+          <Text style={styles.sectionTitle}>{t('discountsAndBenefits')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <PromotionCard 
               discount="15%"

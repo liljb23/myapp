@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 
 const discounts = [
@@ -20,6 +21,7 @@ const discounts = [
 ];
 
 const Discount = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
 
   const renderItem = ({ item }) => (
@@ -29,9 +31,9 @@ const Discount = () => {
     >
       <Image source={item.image} style={styles.image} />
       <View style={styles.overlay}>
-        <Text style={styles.discountText}>Discount</Text>
+        <Text style={styles.discountText}>{t('discount')}</Text>
         <Text style={styles.discount}>{item.discount}</Text>
-        <Text style={styles.expiry}>{item.expiry}</Text>
+        <Text style={styles.expiry}>{t('expiresIn', { date: item.expiry })}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -47,7 +49,7 @@ const Discount = () => {
         {/*<Image source={require('../assets/logo-removebg.png')} style={styles.logo} />*/}
       </View>
 
-      <Text style={styles.headerText}>Discounts and benefits</Text>
+      <Text style={styles.headerText}>{t('discountsAndBenefits')}</Text>
       <FlatList data={discounts} renderItem={renderItem} keyExtractor={(item) => item.id} />
 
     </View>

@@ -10,30 +10,32 @@ import {
     Alert
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 const Menu = ({ navigation }) => {
+    const { t } = useTranslation();
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [user, setUser] = useState(null);
 
     const menuItems = [
         {
             icon: 'user',
-            title: 'Edit Profile',
+            title: t('editProfile'),
             onPress: () => navigation.navigate('EditProfile')
         },
         {
             icon: 'heart',
-            title: 'Favorites',
+            title: t('favorites'),
             onPress: () => navigation.navigate('Favorites')
         },
         {
             icon: 'globe',
-            title: 'Change Language',
+            title: t('changeLanguage'),
             onPress: () => navigation.navigate('LanguageSettings')
         },
         {
             icon: 'help-circle',
-            title: 'Help Center',
+            title: t('helpCenter'),
             onPress: () => navigation.navigate('HelpCenter')
         }
     ];
@@ -62,11 +64,11 @@ const Menu = ({ navigation }) => {
 
     const handleDeleteAccount = () => {
         Alert.alert(
-            'Confirm Delete Account',
-            'Are you sure you want to delete your account?',
+            t('confirmDeleteAccountTitle'),
+            t('confirmDeleteAccountMessage'),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', onPress: deleteAccount, style: 'destructive' },
+                { text: t('cancel'), style: 'cancel' },
+                { text: t('delete'), onPress: deleteAccount, style: 'destructive' },
             ],
             { cancelable: true }
         );
@@ -103,13 +105,13 @@ const Menu = ({ navigation }) => {
             <View style={styles.userSection}>
                 {user ? (
                     <View>
-                        <Text style={{ fontSize: 18 }}>
-                            Hello, {user.displayName || user.email}
+                        <Text style={{ fontSize: 18, color: 'white' }}>
+                            {t('helloUser', { name: user.displayName || user.email })}
                         </Text>
                         <Text style={styles.userEmail}>{user.email}</Text>
                     </View>
                 ) : (
-                    <Text style={{ fontSize: 18, color: 'white' }}>Hello,</Text>
+                    <Text style={{ fontSize: 18, color: 'white' }}>{t('hello')}</Text>
                 )}
             </View>
 
@@ -152,7 +154,7 @@ const Menu = ({ navigation }) => {
                         color="#fff"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.logoutButtonText}>Logout</Text>
+                    <Text style={styles.logoutButtonText}>{t('logout')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -165,19 +167,19 @@ const Menu = ({ navigation }) => {
                         color="#FF0000"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+                    <Text style={styles.deleteAccountButtonText}>{t('deleteAccount')}</Text>
                 </TouchableOpacity>
             </View>
 
             {showConfirmation && (
                 <View style={styles.confirmationContainer}>
-                    <Text style={styles.confirmationText}>Do you want to Logout?</Text>
+                    <Text style={styles.confirmationText}>{t('logoutConfirmation')}</Text>
                     <View style={styles.confirmationButtons}>
                         <TouchableOpacity style={styles.confirmButton} onPress={confirmLogout}>
-                            <Text style={styles.confirmButtonText}>Yes, Logout</Text>
+                            <Text style={styles.confirmButtonText}>{t('yesLogout')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.cancelButton} onPress={cancelLogout}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                            <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
