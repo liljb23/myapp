@@ -1,4 +1,5 @@
 // Import Screens
+
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,8 +11,7 @@ import { FIREBASE_AUTH, FIREBASE_DB } from './screen/FirebaseConfig';
 import { AuthProvider } from './screen/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
-import i18n from './screen/i18n';
-import { I18nextProvider } from 'react-i18next';
+import { i18nInitPromise } from './screen/i18n';
 
 // Import all screens
 import Register from './screen/Register';
@@ -38,7 +38,6 @@ import UploadSlipScreen from './screen/UploadSlipScreen';
 import NewServices from './screen/NewServices';
 import AdminScreen from './screen/AdminScreen';
 import AddPromotion from './screen/AddPromotion';
-import PromotionList from './screen/PromotionList';
 import EditPromotion from './screen/EditPromotion';
 import AddScreen from './screen/AddScreen';
 import NotificationScreen from './screen/NotificationScreen';
@@ -58,7 +57,6 @@ import EditService from './screen/EditService';
 import EditUserScreen from './screen/EditUserScreen';
 import AddServices from './screen/AddServices';
 import AddPromotionScreen from './screen/AddPromotionScreen';
-import './screen/i18n'; 
 
 // Create navigators
 const Stack = createStackNavigator();
@@ -77,7 +75,8 @@ const AuthNavigator = () => (
       headerTintColor: '#fff',
     }}
   >
-    <AuthStack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />    <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
+    <AuthStack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />
+    <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
   </AuthStack.Navigator>
@@ -193,7 +192,7 @@ const EntrepreneurTabs = ({ user, onLogout }) => (
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
-        if (route.name === 'EntrepreneurTab') {
+        if (route.name === 'EntrepreneurHome') {
           iconName = 'home';
         } else if (route.name === 'CampaignsTab') {
           iconName = 'campaign';
@@ -269,7 +268,7 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
       {props => <EntrepreneurTabs {...props} user={user} onLogout={onLogout} />}
     </EntrepreneurStack.Screen>
     <EntrepreneurStack.Screen name="EntrepreneurHome" component={EntrepreneurHome} options={{ headerShown: false }} />
-    <EntrepreneurStack.Screen name="NewServices" component={NewServices} options={{ headerShown: true }} />
+    <EntrepreneurStack.Screen name="AddServices" component={AddServices} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="Menu" component={Menu} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="AddMapScreen" component={AddMapScreen} />
     <EntrepreneurStack.Screen name="PaymentScreen" component={PaymentScreen} />
@@ -278,6 +277,7 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
     <EntrepreneurStack.Screen name="LanguageSettings" component={LanguageSettings} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
     <EntrepreneurStack.Screen name="CampaignScreen" component={CampaignScreen} />
+    <EntrepreneurStack.Screen name="EditService" component={EditService} options={{ headerShown: false }} />
 
   </EntrepreneurStack.Navigator>
 );
@@ -296,12 +296,12 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="EditPromotion" component={EditPromotion} />
     <Stack.Screen name="AddScreen" component={AddScreen} />
     <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
-    <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} />
-    <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen} />
-    <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} />
-    <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen} />
-    <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen} />
-    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} />
+    <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen}  options={{ headerShown: false }} />
+    <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen}  options={{ headerShown: false }} />
+    <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen}  options={{ headerShown: false }} />
+    <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen}  options={{ headerShown: false }} />
+    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen}  options={{ headerShown: false }} />
     <Stack.Screen name="AddBlog" component={AddBlog} />
     <Stack.Screen name="BlogList" component={BlogList} />
     <Stack.Screen name="SlipDetail" component={SlipDetail} />
@@ -310,10 +310,8 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="EditBlog" component={EditBlog} />
     <Stack.Screen name="EditService" component={EditService} />
     <Stack.Screen name="EditUserScreen" component={EditUserScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="AddServices" component={AddServices} />
+    <Stack.Screen name="AddServices" component={AddServices} options={{ headerShown: false }} />
     <Stack.Screen name="AddMapScreen" component={AddMapScreen} />
-
-   
   </Stack.Navigator>
 );
 
@@ -321,6 +319,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (currentUser) => {
@@ -344,8 +343,12 @@ export default function App() {
       setLoading(false);
     });
 
+    i18nInitPromise.then(() => setReady(true));
+
     return () => unsubscribe();
   }, []);
+
+  if (!ready) return null;
 
   if (loading) {
     return (
@@ -357,21 +360,19 @@ export default function App() {
   }
 
   return (
-    <I18nextProvider i18n={i18n}>
-      <AuthProvider>
-        <NavigationContainer>
-          {!user ? (
-            <GuestStackNavigator />
-          ) : role === "Admin" ? (
-            <AdminStackNavigator user={user} />
-          ) : role === "Entrepreneur" ? (
-            <EntrepreneurStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
-          ) : (
-            <GeneralUserStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
-          )}
-        </NavigationContainer>
-      </AuthProvider>
-    </I18nextProvider>
+    <AuthProvider>
+      <NavigationContainer>
+        {!user ? (
+          <GuestStackNavigator />
+        ) : role === "Admin" ? (
+          <AdminStackNavigator user={user} />
+        ) : role === "Entrepreneur" ? (
+          <EntrepreneurStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
+        ) : (
+          <GeneralUserStackNavigator user={user} onLogout={() => signOut(FIREBASE_AUTH)} />
+        )}
+      </NavigationContainer>
+    </AuthProvider>
   );
 }
 
