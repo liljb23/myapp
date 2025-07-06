@@ -6,37 +6,11 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
-import { collection, getDocs, query, where, doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
-import * as Location from 'expo-location';
-
-const updateCampaignReport = async ({ campaignId, serviceId, entrepreneurId, type }) => {
-  try {
-    if (!campaignId || !serviceId || !entrepreneurId || !type) {
-      console.log('Missing field:', { campaignId, serviceId, entrepreneurId, type });
-      return;
-    }
-    const reportRef = doc(FIREBASE_DB, 'CampaignReports', String(campaignId));
-    const updateData = {
-      updatedAt: serverTimestamp(),
-    };
-    if (type === 'impression') updateData.impressions = increment(1);
-    if (type === 'click') updateData.clicks = increment(1);
-    if (type === 'conversion') updateData.conversions = increment(1);
-
-    await setDoc(reportRef, {
-      campaignId,
-      serviceId,
-      entrepreneurId,
-      createdAt: serverTimestamp(),
-      ...updateData,
-    }, { merge: true });
-    console.log('✅ Firestore write success:', campaignId);
-  } catch (e) {
-    console.error('❌ Firestore write error:', e);
-  }
-};
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
 const Home = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -46,37 +20,8 @@ const Home = () => {
   const [mosques, setMosques] = useState([]);
   const [touristAttractions, setTouristAttractions] = useState([]);
   const [prayerPlaces, setPrayerPlaces] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
+  
 
-  function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    function deg2rad(deg) {
-      return deg * (Math.PI / 180);
-    }
-    const R = 6371;
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) *
-        Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c;
-    return d;
-  }
-
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setUserLocation(null);
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      setUserLocation(location.coords);
-    })();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = FIREBASE_AUTH.onAuthStateChanged((currentUser) => {
@@ -91,92 +36,39 @@ const Home = () => {
       try {
         setLoading(true);
 
-        // Services
-        const servicesCollectionRef = collection(FIREBASE_DB, 'Services');
-        const servicesSnapshot = await getDocs(servicesCollectionRef);
+        // ดึงข้อมูล Services
+        const servicesCol = collection(FIREBASE_DB, 'Services');
+        const servicesSnapshot = await getDocs(servicesCol);
         setServices(servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // Recommends
-        const recommendCollectionRef = collection(FIREBASE_DB, 'CampaignSubscriptions');
-        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'approved'));
+        // ดึงเฉพาะ Services ที่เป็น Recommend
+        const recommendCol = collection(FIREBASE_DB, 'CampaignSubscriptions');
+        const recommendQuery = query(recommendCol, where('status', '==', 'waiting_payment'));
         const recommendSnapshot = await getDocs(recommendQuery);
-        const recommendsRaw = recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const serviceIds = recommendsRaw.map(r => r.serviceId).filter(Boolean);
-        let recommendsWithService = [];
-        if (serviceIds.length > 0) {
-          const batchSize = 10;
-          let servicesMap = {};
-          for (let i = 0; i < serviceIds.length; i += batchSize) {
-            const batchIds = serviceIds.slice(i, i + batchSize);
-            const servicesQuery = query(
-              servicesCollectionRef,
-              where('__name__', 'in', batchIds)
-            );
-            const servicesSnapshot = await getDocs(servicesQuery);
-            servicesSnapshot.docs.forEach(doc => {
-              servicesMap[doc.id] = { id: doc.id, ...doc.data() };
-            });
-          }
-          recommendsWithService = recommendsRaw.map(r => ({
-            ...r,
-            ...servicesMap[r.serviceId],
-          }));
+        setRecommends(recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-          const seen = new Set();
-          recommendsWithService = recommendsWithService.filter(r => {
-            if (!r.serviceId) return false;
-            if (seen.has(r.serviceId)) return false;
-            seen.add(r.serviceId);
-            return true;
-          });
-        }
-        setRecommends(recommendsWithService);
-
-        // Blog
-        const blogsCollectionRef = collection(FIREBASE_DB, 'Blog');
-        const blogsSnapshot = await getDocs(blogsCollectionRef);
+        // ดึงข้อมูล Blog
+        const blogsCol = collection(FIREBASE_DB, 'Blog');
+        const blogsSnapshot = await getDocs(blogsCol);
         setBlogs(blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // Mosques
-        const mosqueCollectionRef = collection(FIREBASE_DB, 'Services');
-        const mosqueQuery = query(mosqueCollectionRef, where('category', '==', 'Mosque'));
+        // 🔹 ดึงข้อมูล Mosques
+        const mosqueCol = collection(FIREBASE_DB, 'Services');
+        const mosqueQuery = query(mosqueCol, where('category', '==', 'Mosque'));
         const mosqueSnapshot = await getDocs(mosqueQuery);
         setMosques(mosqueSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // Tourist Attractions
-        const touristCollectionRef = collection(FIREBASE_DB, 'Services');
-        const touristQuery = query(touristCollectionRef, where('category', '==', 'Tourist attraction'));
+        // 🔹 ดึงข้อมูล Tourist Attractions
+        const touristCol = collection(FIREBASE_DB, 'Services');
+        const touristQuery = query(touristCol, where('category', '==', 'Tourist attraction'));
         const touristSnapshot = await getDocs(touristQuery);
         setTouristAttractions(touristSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-        // Places of Prayer
-        const prayerCollectionRef = collection(FIREBASE_DB, 'Services');
-        const prayerQuery = query(prayerCollectionRef, where('category', '==', 'Prayer Space'));
+        // 🔹 ดึงข้อมูล Places of Prayer
+        const prayerCol = collection(FIREBASE_DB, 'Services');
+        const prayerQuery = query(prayerCol, where('category', '==', 'Prayer Space'));
         const prayerSnapshot = await getDocs(prayerQuery);
         setPrayerPlaces(prayerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-
-        const addDistanceAndSort = (list) => {
-          if (!userLocation) return list;
-          return list
-            .map(item => {
-              if (item.latitude && item.longitude) {
-                const distance = getDistanceFromLatLonInKm(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  Number(item.latitude),
-                  Number(item.longitude)
-                );
-                return { ...item, distance: `${distance.toFixed(2)} km`, _distanceValue: distance };
-              }
-              return { ...item, distance: '-', _distanceValue: Infinity };
-            })
-            .sort((a, b) => a._distanceValue - b._distanceValue);
-        };
-
-        setMosques(prev => addDistanceAndSort(prev));
-        setTouristAttractions(prev => addDistanceAndSort(prev));
-        setPrayerPlaces(prev => addDistanceAndSort(prev));
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -186,7 +78,7 @@ const Home = () => {
     };
 
     fetchData();
-  }, [userLocation]);
+  }, []);
 
   if (loading) {
     return (
@@ -195,6 +87,8 @@ const Home = () => {
       </View>
     );
   }
+
+  
 
   return (
     <View style={styles.container}>
@@ -210,7 +104,7 @@ const Home = () => {
 
         <View style={styles.logoContainer}>
           <Image
-            //source={require('../png/logo-removebg.png')}
+            source={require('../assets/logo-removebg.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -223,7 +117,7 @@ const Home = () => {
              onPress={() => navigation.navigate('Search')}
            >
              <Feather name="search" size={20} color="#666" />
-             <Text style={styles.searchPlaceholderText}>Search...</Text>
+             <Text style={styles.searchPlaceholderText}>{t('searchPlaceholder')}</Text>
            </TouchableOpacity>
         </View>
       </View>
@@ -234,8 +128,7 @@ const Home = () => {
           // 🔹 ถ้าผู้ใช้ล็อกอินอยู่
           <View style={styles.userSection}>
             <View>
-            <Text style={{ fontSize: 18 }}>Hello, {user.username || user.email}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
+            <Text style={styles.helloText}>Hello, {user?.displayName || user?.email?.split('@')[0] || 'User'}</Text>            <Text style={styles.userEmail}>{user.email}</Text>
             </View>
             <View style={styles.userActions}>
               <TouchableOpacity style={styles.iconButton}>
@@ -253,10 +146,10 @@ const Home = () => {
           // 🔹 ถ้ายังไม่ล็อกอิน แสดงปุ่มสมัครและล็อกอิน
           <View style={styles.authButtons}>
             <TouchableOpacity style={[styles.authButton, styles.loginButton]} onPress={() => navigation.navigate('Login-email')}>
-              <Text style={styles.authButtonText}>Login</Text>
+              <Text style={styles.authButtonText}>{t('login')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.authButton, styles.registerButton]} onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerButtonText}>Register</Text>
+              <Text style={styles.registerButtonText}>{t('register')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -282,9 +175,9 @@ const Home = () => {
         {/* Recommends Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommends</Text>
+            <Text style={styles.sectionTitle}>{t('recommends')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {/* <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -315,38 +208,29 @@ const Home = () => {
           </ScrollView> */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {recommends.map(recommend => (
-              <RecommendCard
-                key={recommend.id}
-                campaignId={recommend.campaignId || recommend.id}
-                serviceId={recommend.serviceId}
-                entrepreneurId={recommend.EntrepreneurId}
-                name={recommend.name}
-                category={recommend.category}
-                location={recommend.location}
-                image={recommend.image}
-              />
+              <RecommendCard key={recommend.id} {...recommend} />
             ))}
           </ScrollView>
         </View>
 
         {/* Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionTitle}>{t('categories')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <CategoryIcon title="Restaurant" emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
-            <CategoryIcon title="Beauty & Salon" emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
-            <CategoryIcon title="Resort & Hotel" emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
-            <CategoryIcon title="Tourist Attraction" emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
-            <CategoryIcon title="Mosque" emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
+            <CategoryIcon title={t('restaurant')} emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
+            <CategoryIcon title={t('beautySalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
+            <CategoryIcon title={t('resortHotel')} emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
+            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
+            <CategoryIcon title={t('mosque')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
           </ScrollView>
         </View>
 
         {/* Blog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Blog</Text>
+            <Text style={styles.sectionTitle}>{t('blog')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {blogs.map(blog => (
@@ -369,7 +253,7 @@ const Home = () => {
 
         {/* Mosque Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mosque near you</Text>
+          <Text style={styles.sectionTitle}>{t('mosqueNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {mosques.map(mosque => (
               <LocationCard key={mosque.id} {...mosque} />
@@ -396,7 +280,7 @@ const Home = () => {
 
         {/* Tourist Attractions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tourist attractions</Text>
+          <Text style={styles.sectionTitle}>{t('touristAttractions')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {touristAttractions.map(attraction => (
               <LocationCard key={attraction.id} {...attraction} />
@@ -426,7 +310,7 @@ const Home = () => {
 
         {/* Places of Prayer */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Places of prayer near you</Text>
+          <Text style={styles.sectionTitle}>{t('prayerPlacesNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {prayerPlaces.map(place => (
               <LocationCard key={place.id} {...place} />
@@ -455,7 +339,7 @@ const Home = () => {
 
         {/* Discounts and Benefits */}
         <View style={[styles.section, styles.lastSection]}>
-          <Text style={styles.sectionTitle}>Discounts and benefits</Text>
+          <Text style={styles.sectionTitle}>{t('discountsAndBenefits')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <PromotionCard 
               discount="15%"
@@ -547,35 +431,27 @@ const CategoryIcon = ({ title, emoji, onPress, isActive }) => (
   </TouchableOpacity>
 );
 
-const RecommendCard = ({ campaignId, serviceId, entrepreneurId, name, category, location, image }) => {
-  useEffect(() => {
-    console.log('Impression:', { campaignId, serviceId, entrepreneurId });
-    updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'impression' });
-  }, []);
-
-  const handleClick = () => {
-    updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'click' });
-  };
-
-  return (
-    <TouchableOpacity style={styles.recommendCard} onPress={handleClick}>
-      <Image source={{ uri: image }} style={styles.recommendImage} />
-      <View style={styles.recommendContent}>
-        <View style={styles.recommendHeader}>
-          <Text style={styles.recommendTitle} numberOfLines={2}>{name}</Text>
-          <TouchableOpacity style={styles.heartButton}>
-            <Feather name="heart" size={18} color="#666" />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.recommendCategory}>({category})</Text>
-        <View style={styles.recommendLocation}>
-          <Feather name="map-pin" size={14} color="#666" />
-          <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
-        </View>
+const RecommendCard = ({ name, category, location,image  }) => (
+  <TouchableOpacity style={styles.recommendCard}>
+    <Image
+      source={{ uri: image }}
+      style={styles.recommendImage}
+    />
+    <View style={styles.recommendContent}>
+      <View style={styles.recommendHeader}>
+        <Text style={styles.recommendTitle} numberOfLines={2}>{name}</Text>
+        <TouchableOpacity style={styles.heartButton}>
+          <Feather name="heart" size={18} color="#666" />
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
-  );
-};
+      <Text style={styles.recommendCategory}>({category})</Text>
+      <View style={styles.recommendLocation}>
+        <Feather name="map-pin" size={14} color="#666" />
+        <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
+      </View>
+    </View>
+  </TouchableOpacity>
+);
 const BlogCard = ({ name, title, predescription, image }) => (
   <TouchableOpacity style={styles.blogCard} onPress={() => navigation.navigate('BlogDetail')} >
     <Image source={{ uri: image }} style={styles.blogImage} />
