@@ -77,12 +77,14 @@ const EditPromotion = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="white" />
         </TouchableOpacity>
-        <Text style={styles.header}>Edit Promotion</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Edit Promotion</Text>
+        </View>
+        <View style={{ width: 40 }} />
       </View>
 
       <Text style={styles.label}>Promotion Name <Text style={styles.required}>*</Text></Text>
@@ -173,20 +175,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1
   },
-  headerContainer: {
+  header: {
+    height: 100,
+    backgroundColor: '#002B28',
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#002B28',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
     marginBottom: 20,
-    borderRadius: 10,
   },
-  header: {
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
   },
   label: {
     fontSize: 16,
