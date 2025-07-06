@@ -14,7 +14,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { FIREBASE_DB } from '../screen/FirebaseConfig';
+import { FIREBASE_DB, FIREBASE_AUTH } from '../screen/FirebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function EditService() {
@@ -106,6 +106,15 @@ export default function EditService() {
     setShowTimePicker(false);
   };
 
+  const handleSelectLocation = () => {
+    navigation.navigate('AddMapScreen', {
+      onLocationSelect: (address, lat, lng) => {
+        setLocation(address);
+        // Optionally store lat/lng if you want
+      }
+    });
+  };
+
   const handleUpdate = async () => {
     if (!name || !category || !location || !phone) {
       Alert.alert('Error', 'Please fill in all required fields: Service Name, Category, Location, and Phone Number.');
@@ -132,6 +141,29 @@ export default function EditService() {
       Alert.alert('Error', 'Failed to update service');
     }
   };
+
+  const currentUser = FIREBASE_AUTH.currentUser;
+  const isOwner = service.EntrepreneurId === currentUser?.uid;
+
+  if (!isOwner) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Service</Text>
+          <View style={{ width: 24 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Ionicons name="alert-circle" size={48} color="#D11A2A" />
+          <Text style={{ color: '#D11A2A', fontSize: 18, marginTop: 16, textAlign: 'center' }}>
+            You do not have permission to edit this service.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -165,12 +197,15 @@ export default function EditService() {
         />
 
         <Text style={styles.label}>Location <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          value={location}
-          onChangeText={setLocation}
-          placeholder="Enter location"
-        />
+        <TouchableOpacity
+          style={[styles.input, { flexDirection: 'row', alignItems: 'center' }]}
+          onPress={handleSelectLocation}
+        >
+          <Text style={{ flex: 1, color: location ? '#333' : '#999' }}>
+            {location || 'Select location on map'}
+          </Text>
+          <Ionicons name="map" size={20} color="#014737" />
+        </TouchableOpacity>
 
         <Text style={styles.label}>Operating Days & Hours</Text>
         {operatingHours.map((hours, index) => (
@@ -201,10 +236,10 @@ export default function EditService() {
 
             {operatingHours.length > 1 && (
               <TouchableOpacity
-                style={styles.removeButton}
+                style={styles.deleteIconButton}
                 onPress={() => removeOperatingHours(index)}
               >
-                <Ionicons name="x" size={20} color="#666" />
+                <Ionicons name="trash" size={20} color="red" />
               </TouchableOpacity>
             )}
           </View>
@@ -440,9 +475,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '30%',
   },
-  removeButton: {
-    padding: 8,
-    marginLeft: 5,
+  deleteIconButton: {
+    
+    borderRadius: 16,
+    padding: 6,
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addMoreButton: {
     backgroundColor: "#014737",
