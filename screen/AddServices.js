@@ -13,13 +13,14 @@ import {
   TouchableWithoutFeedback,
   Button
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EntrepreneurHome from './EntrepreneurHome';
 import { useAuth } from '../screen/AuthContext';
+import { FIREBASE_DB } from './FirebaseConfig';
 
 const AddServices = ({ navigation }) => {
   const { user } = useAuth();
@@ -170,7 +171,7 @@ const AddServices = ({ navigation }) => {
     }
 
     try {
-      await firestore().collection('Services').add({
+      await addDoc(collection(FIREBASE_DB, 'Services'), {
         name: serviceName,
         category: category,
         description: description,
@@ -186,7 +187,7 @@ const AddServices = ({ navigation }) => {
         rating: 0,
         reviews: 0,
         image: serviceImages[0] || '',
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
         EntrepreneurId: user.uid,
       });
 
@@ -204,9 +205,11 @@ const AddServices = ({ navigation }) => {
   // Open location picker
   const openLocationPicker = () => {
     navigation.navigate('AddMapScreen', {
-      setLocation,
-      setLatitude,
-      setLongitude
+      onLocationSelect: (address, lat, lng) => {
+        setLocation(address);
+        setLatitude(lat);
+        setLongitude(lng);
+      }
     });
   };
 
