@@ -12,6 +12,8 @@ import {
   FlatList
 } from 'react-native';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
+import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const Register = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -53,12 +55,12 @@ const Register = ({ navigation }) => {
     setLoading(true);
   
     try {
-      const userCredential = await FIREBASE_AUTH.createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
       const user = userCredential.user;
       console.log("User registered:", user);
   
       // บันทึกข้อมูลผู้ใช้ลง Firestore
-      await db.collection("user").doc(user.uid).set({
+      await setDoc(doc(FIREBASE_DB, "user", user.uid), {
         name: name || "",  // ป้องกันค่า undefined
         email: user.email,
         phone: phone || "",
