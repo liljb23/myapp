@@ -4,9 +4,13 @@ import { collection, getDocs, getCountFromServer } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
+import { useAuth } from './AuthContext';
+import { useTranslation } from 'react-i18next';
 
 export default function AdminScreen() {
   const navigation = useNavigation();
+  const { logout } = useAuth();
+ 
 
   const [counts, setCounts] = useState({
     users: 0,
@@ -59,7 +63,7 @@ export default function AdminScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          // source={require('../png/logo-removebg.png')}
+          source={require('../assets/logo-removebg.png')}
           style={{ width: 150, height: 150, alignItems: 'center' }}
           resizeMode="contain"
         />
@@ -67,9 +71,21 @@ export default function AdminScreen() {
       </View>
 
       {/* Greeting */}
-      <View style={styles.greeting}>
-        <Text style={styles.helloText}>Hello, (Admin)</Text>
-        <Text style={styles.emailText}>admin@halalway.com</Text>
+      <View style={styles.greetingRow}>
+        <View>
+          <Text style={styles.helloText}>Hello, (Admin)</Text>
+          <Text style={styles.emailText}>admin@halalway.com</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={async () => {
+            await logout();
+            navigation.navigate('Login-email');
+          }}
+        >
+          <Feather name="log-out" size={23} color="#D11A2A" />
+          <Text style={styles.logoutButtonText}>logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Dashboard Cards */}
@@ -132,7 +148,10 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 22, color: 'white', fontWeight: 'bold' },
   logoYellow: { color: '#FDCB02' },
 
-  greeting: {
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: 'white',
     paddingHorizontal: 20,
     paddingVertical: 15,
@@ -184,5 +203,20 @@ const styles = StyleSheet.create({
     color: '#FDCB02',
     fontSize: 12,
     marginTop: 3,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    //backgroundColor: '#D11A2A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 10,
+    alignSelf: 'center',
+  },
+  logoutButtonText: {
+    color: '#D11A2A',
+    fontSize: 14,
+    marginLeft: 6,
   },
 });
