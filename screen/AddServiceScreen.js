@@ -159,7 +159,9 @@ export default function AddServiceScreen({ navigation }) {
   // Open location picker
   const openLocationPicker = () => {
     navigation.navigate('AddMapScreen', {
-      onLocationSelect: handleLocationSelect
+      onLocationSelect: (address, lat, lng) => {
+        handleLocationSelect(address, lat, lng);
+      }
     });
   };
 
