@@ -142,9 +142,9 @@ export default function EntrepreneurQuantityScreen() {
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
-      <Text style={styles.username}>ชื่อ: {item.name || 'N/A'}</Text>
-      <Text style={styles.email}>อีเมล: {item.email || 'N/A'}</Text>
-      <Text style={styles.email}>เบอร์โทร: {item.phone || '-'}</Text>
+      <Text style={styles.username}>Name: {item.name || 'N/A'}</Text>
+      <Text style={styles.email}>Email: {item.email || 'N/A'}</Text>
+      <Text style={styles.email}>Phone: {item.phone || '-'}</Text>
       <Text style={styles.email}>EntrepreneurId: {item.id}</Text>
       
       {/* Services Section */}
@@ -213,7 +213,7 @@ export default function EntrepreneurQuantityScreen() {
 
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
           <Ionicons name="home-outline" size={24} color="#FFD700" />
           <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>
