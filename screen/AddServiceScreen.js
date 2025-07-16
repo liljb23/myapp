@@ -159,7 +159,9 @@ export default function AddServiceScreen({ navigation }) {
   // Open location picker
   const openLocationPicker = () => {
     navigation.navigate('AddMapScreen', {
-      onLocationSelect: handleLocationSelect
+      onLocationSelect: (address, lat, lng) => {
+        handleLocationSelect(address, lat, lng);
+      }
     });
   };
 
@@ -234,28 +236,54 @@ export default function AddServiceScreen({ navigation }) {
 
       {/* Service Type Selection */}
       <Text style={styles.sectionTitle}>Type Service</Text>
-      <View style={styles.serviceTypeContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.serviceTypeScroll}
+        contentContainerStyle={styles.serviceTypeContainer}
+      >
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Restaurant' && styles.selectedServiceType]}
           onPress={() => setCategory('Restaurant')}>
           <Image source={require('../assets/dish.png')} style={styles.serviceTypeIcon} />
-          <Text style={styles.serviceTypeText}>Restaurant</Text>
+          <Text style={[styles.serviceTypeText, category === 'Restaurant' && styles.selectedServiceTypeText]}>Restaurant</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Beauty & Salon' && styles.selectedServiceType]}
           onPress={() => setCategory('Beauty & Salon')}>
           <Image source={require('../assets/barber-shop.png')} style={styles.serviceTypeIcon} />
-          <Text style={styles.serviceTypeText}>Beauty & Salon</Text>
+          <Text style={[styles.serviceTypeText, category === 'Beauty & Salon' && styles.selectedServiceTypeText]}>Beauty & Salon</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Resort & Hotel' && styles.selectedServiceType]}
           onPress={() => setCategory('Resort & Hotel')}>
           <Image source={require('../assets/resort.png')} style={styles.serviceTypeIcon} />
-          <Text style={styles.serviceTypeText}>Resort & Hotel</Text>
+          <Text style={[styles.serviceTypeText, category === 'Resort & Hotel' && styles.selectedServiceTypeText]}>Resort & Hotel</Text>
         </TouchableOpacity>
-      </View>
+
+        <TouchableOpacity
+          style={[styles.serviceTypeButton, category === 'Prayer Space' && styles.selectedServiceType]}
+          onPress={() => setCategory('Prayer Space')}>
+          <Image source={require('../assets/prayer.png')} style={styles.serviceTypeIcon} />
+          <Text style={[styles.serviceTypeText, category === 'Prayer Space' && styles.selectedServiceTypeText]}>Prayer Space</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.serviceTypeButton, category === 'Mosque' && styles.selectedServiceType]}
+          onPress={() => setCategory('Mosque')}>
+          <Image source={require('../assets/night-prayer.png')} style={styles.serviceTypeIcon} />
+          <Text style={[styles.serviceTypeText, category === 'Mosque' && styles.selectedServiceTypeText]}>Mosque</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.serviceTypeButton, category === 'Tourist attraction' && styles.selectedServiceType]}
+          onPress={() => setCategory('Tourist attraction')}>
+          <Image source={require('../assets/traveling.png')} style={styles.serviceTypeIcon} />
+          <Text style={[styles.serviceTypeText, category === 'Tourist attraction' && styles.selectedServiceTypeText]}>Tourist attraction</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* Service Name */}
       <Text style={styles.label}>Name Service <Text style={styles.required}>*</Text></Text>
@@ -583,23 +611,35 @@ const styles = StyleSheet.create({
   },
   serviceTypeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  serviceTypeScroll: {
     marginBottom: 10,
+    marginHorizontal: 0,
   },
   serviceTypeButton: {
-    width: '30%',
+    minWidth: 110,
     height: 80,
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 10,
+    marginRight: 10,
   },
   selectedServiceType: {
     borderWidth: 2,
     borderColor: '#014737',
     backgroundColor: '#e6f2ef',
+    shadowColor: '#014737',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  selectedServiceTypeText: {
+    color: '#014737',
+    fontWeight: 'bold',
   },
   serviceTypeIcon: {
     width: 40,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,51 +8,57 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
+import { signOut } from 'firebase/auth';
 
 const EntrepreneurHome = () => {
   const navigation = useNavigation();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [user, setUser] = useState(FIREBASE_AUTH.currentUser);
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const user = FIREBASE_AUTH.currentUser;
-        if (!user) {
-          navigation.navigate('Login');
-          return;
+  useFocusEffect(
+    useCallback(() => {
+      const fetchServices = async () => {
+        const currentUser = FIREBASE_AUTH.currentUser;
+        setUser(currentUser);
+        setLoading(true);
+        try {
+          if (!currentUser) {
+            navigation.navigate('Login');
+            return;
+          }
+          const servicesRef = collection(FIREBASE_DB, 'Services');
+          const q = query(servicesRef, where('EntrepreneurId', '==', currentUser.uid));
+          const querySnapshot = await getDocs(q);
+          const servicesData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setServices(servicesData);
+        } catch (error) {
+          console.error('Error fetching services:', error);
+          Alert.alert('Error', 'Failed to load services');
+        } finally {
+          setLoading(false);
         }
-
-        const servicesRef = collection(FIREBASE_DB, 'Services');
-        const q = query(servicesRef, where('entrepreneurId', '==', user.uid));
-        const querySnapshot = await getDocs(q);
-        const servicesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setServices(servicesData);
-      } catch (error) {
-        console.error('Error fetching services:', error);
-        Alert.alert('Error', 'Failed to load services');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchServices();
-  }, []);
+      };
+      fetchServices();
+    }, [])
+  );
 
   const handleAddService = () => {
-    navigation.navigate('NewServices');
+    navigation.navigate('AddServices');
   };
 
   const handleEditService = (service) => {
-    navigation.navigate('EditService', { service });
+    navigation.navigate('EditServiceEntrepreneur', { service });
   };
 
   const handleViewCampaigns = (serviceId) => {
@@ -83,6 +89,23 @@ const EntrepreneurHome = () => {
     );
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(FIREBASE_AUTH);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    } catch (error) {
+      Alert.alert('Logout Error', error.message);
+    }
+  };
+
+  // handle the selected location
+  const onLocationSelect = (location) => {
+   
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -93,42 +116,71 @@ const EntrepreneurHome = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Custom Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-        <Text style={styles.headerTitle}>My Services</Text>
-          <Text style={styles.quantityText}>Total: {services.length}</Text>
+        <Image
+          source={require('../assets/logo-removebg.png')}
+          style={{ width: 150, height: 150 }}
+          resizeMode="contain"
+        />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Feather name="menu" size={24} color="white" style={{ marginRight: 16 }} />
         </View>
-        <TouchableOpacity onPress={handleAddService}>
-          <Ionicons name="add" size={24} color="white" />
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search..."
+          value={search}
+          onChangeText={setSearch}
+          placeholderTextColor="#014737"
+        />
+        <Ionicons name="search" size={20} color="#014737" />
+      </View>
+
+      {/* User Info Row */}
+      <View style={styles.userRow}>
+        <View>
+          <Text style={styles.helloText}>Hello, {user?.displayName || user?.email?.split('@')[0] || 'User'}</Text>
+          <Text style={styles.emailText}>{user?.email}</Text>
+        </View>
+        {/* <Feather name="bell" size={22} color="#014737" /> */}
+        <TouchableOpacity onPress={handleLogout}>
+          <Feather name="log-out" size={24} color="red" />
         </TouchableOpacity>
       </View>
 
+      {/* Add Service Button */}
+      <TouchableOpacity style={styles.addServiceBtn} onPress={handleAddService}>
+        <Feather name="plus" size={36} color="#7A8686" />
+        <Text style={styles.addServiceText}>Add Service</Text>
+      </TouchableOpacity>
+
+      {/* Section Title */}
+      <Text style={styles.sectionTitle}>Your Service</Text>
+
       {/* Content */}
-        {services.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="business-outline" size={50} color="#999" />
-          <Text style={styles.emptyText}>No services found</Text>
-          <Text style={styles.emptySubText}>Tap the + button to add your first service</Text>
-          </View>
-        ) : (
+      {services.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Service not found.</Text>
+        </View>
+      ) : (
         <ScrollView style={styles.content}>
           {services.map((service) => (
             <View key={service.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.imageContainer}>
-              <Image source={{ uri: service.image }} style={styles.serviceImage} />
+                  <Image source={{ uri: service.image }} style={styles.serviceImage} />
                 </View>
-              <View style={styles.serviceInfo}>
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.serviceLocation}>{service.location}</Text>
-                <View style={styles.ratingContainer}>
-                  <Text style={styles.ratingText}>⭐ {service.rating || 'N/A'}</Text>
-                  <Text style={styles.reviewCount}>({service.reviews || 0} reviews)</Text>
-                </View>
+                <View style={styles.serviceInfo}>
+                  <Text style={styles.serviceName}>{service.name}</Text>
+                  <Text style={styles.serviceLocation}>{service.location}</Text>
+                  <View style={styles.ratingContainer}>
+                    <Text style={styles.ratingText}>⭐ {service.rating || 'N/A'}</Text>
+                    <Text style={styles.reviewCount}>({service.reviews || 0} reviews)</Text>
+                  </View>
                 </View>
               </View>
 
@@ -137,7 +189,7 @@ const EntrepreneurHome = () => {
                   <Ionicons name="location-outline" size={20} color="#666" />
                   <Text style={styles.detailText}>{service.location || 'No location'}</Text>
                 </View>
-                
+
                 <View style={styles.detailRow}>
                   <Ionicons name="star-outline" size={20} color="#666" />
                   <Text style={styles.detailText}>Rating: {service.rating || 'N/A'}</Text>
@@ -150,108 +202,131 @@ const EntrepreneurHome = () => {
               </View>
 
               <View style={styles.cardFooter}>
-                  <TouchableOpacity
+                <TouchableOpacity
                   style={styles.actionButton}
-                    onPress={() => handleEditService(service)}
-                  >
+                  onPress={() => handleEditService(service)}
+                >
                   <Ionicons name="create-outline" size={20} color="#002B28" />
                   <Text style={styles.actionButtonText}>Edit</Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
+                <TouchableOpacity
                   style={[styles.actionButton, styles.viewButton]}
-                    onPress={() => handleViewCampaigns(service.id)}
-                  >
+                  onPress={() => handleViewCampaigns(service.id)}
+                >
                   <Ionicons name="pricetag-outline" size={20} color="#002B28" />
                   <Text style={styles.actionButtonText}>Campaigns</Text>
-                  </TouchableOpacity>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={{ marginTop: 10, backgroundColor: '#ffeaea', padding: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' }}
-                    onPress={() => handleDelete(service.id)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#D11A2A" />
-                    <Text style={{ color: '#D11A2A', marginLeft: 5 }}>Delete</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ marginTop: 10, backgroundColor: '#ffeaea', padding: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' }}
+                  onPress={() => handleDelete(service.id)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#D11A2A" />
+                  <Text style={{ color: '#D11A2A', marginLeft: 5 }}>Delete</Text>
+                </TouchableOpacity>
               </View>
             </View>
           ))}
         </ScrollView>
-        )}
-
-      {/* Bottom Tab */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Home')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={handleAddService}>
-          <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.tabText}>Add</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Notification</Text>
-        </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
-    height: 120,
-    backgroundColor: '#002B28',
-    paddingHorizontal: 20,
+    backgroundColor: '#11332D',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
   },
-  headerContent: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: 'white',
+  logo: {
+    color: '#FFD700',
+    fontSize: 28,
     fontWeight: 'bold',
+    letterSpacing: 1,
   },
-  quantityText: {
-    fontSize: 14,
-    color: 'white',
-    marginTop: 4,
+  searchBar: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    alignItems: 'center',
+    marginHorizontal: 32,
+    marginTop: -24,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  content: {
-    padding: 20,
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#014737',
   },
-  emptyContainer: {
+  userRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 32,
+    marginTop: 24,
+  },
+  helloText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#11332D',
+  },
+  emailText: {
+    color: '#7A8686',
+    fontSize: 13,
+  },
+  addServiceBtn: {
+    backgroundColor: '#E9ECEC',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 24,
+    marginTop: 24,
+    paddingVertical: 32,
+  },
+  addServiceText: {
+    color: '#11332D',
+    fontWeight: 'bold',
+    fontSize: 20,
+    marginTop: 8,
+  },
+  sectionTitle: {
+    marginHorizontal: 24,
+    marginTop: 24,
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#11332D',
+  },
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 40,
   },
   emptyText: {
-    marginTop: 10,
+    color: '#7A8686',
     fontSize: 16,
-    color: '#999',
+    marginTop: 32,
   },
-  emptySubText: {
-    marginTop: 5,
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
+  content: {
+    padding: 20,
   },
   card: {
     backgroundColor: '#fff',

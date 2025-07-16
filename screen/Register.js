@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const Register = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -54,7 +55,7 @@ const Register = ({ navigation }) => {
     setLoading(true);
   
     try {
-      const userCredential = await FIREBASE_AUTH.createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(FIREBASE_AUTH, email, password);
       const user = userCredential.user;
       console.log("User registered:", user);
   

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -7,55 +7,66 @@ import {
     StyleSheet,
     SafeAreaView,
     Platform,
-    Alert
+    Alert,
+    BackHandler
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
+import { FIREBASE_AUTH } from './FirebaseConfig';
+import { CommonActions } from '@react-navigation/native';
 
 const Menu = ({ navigation }) => {
-    const { t } = useTranslation();
-    const [showConfirmation, setShowConfirmation] = useState(false);
     const [user, setUser] = useState(null);
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const prevUser = useRef(user);
+
+    useEffect(() => {
+        const unsubscribe = FIREBASE_AUTH.onAuthStateChanged(setUser);
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        return () => {
+
+        };
+    }, []);
 
     const menuItems = [
         {
             icon: 'user',
-            title: t('editProfile'),
+            title: 'Edit Profile',
             onPress: () => navigation.navigate('EditProfile')
         },
         {
             icon: 'heart',
-            title: t('favorites'),
+            title: 'Favorites',
             onPress: () => navigation.navigate('Favorites')
         },
         {
             icon: 'globe',
-            title: t('changeLanguage'),
+            title: 'Change Language',
             onPress: () => navigation.navigate('LanguageSettings')
         },
         {
             icon: 'help-circle',
-            title: t('helpCenter'),
+            title: 'Help Center',
             onPress: () => navigation.navigate('HelpCenter')
         }
     ];
 
     const handleLogout = () => {
         setShowConfirmation(true);
-        // Implement logout logic here
-        // This might involve:
-        // - Clearing user token
-        // - Resetting navigation state
-        // - Navigating to login screen
-        navigation.navigate('Login');
     };
 
-    const confirmLogout = () => {
-        // Perform logout logic here
+    const confirmLogout = async () => {
         console.log('Logging out...');
         setShowConfirmation(false);
-        // Navigate to login screen or any other appropriate screen
-        navigation.navigate('Login');
+        await FIREBASE_AUTH.signOut();
+        
+        try {
+            await Updates.reloadAsync();
+        } catch (e) {
+            BackHandler.exitApp(); 
+        }
     };
 
     const cancelLogout = () => {
@@ -64,26 +75,19 @@ const Menu = ({ navigation }) => {
 
     const handleDeleteAccount = () => {
         Alert.alert(
-            t('confirmDeleteAccountTitle'),
-            t('confirmDeleteAccountMessage'),
+            'Confirm Delete Account',
+            'Are you sure you want to delete your account?',
             [
-                { text: t('cancel'), style: 'cancel' },
-                { text: t('delete'), onPress: deleteAccount, style: 'destructive' },
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete', onPress: deleteAccount, style: 'destructive' },
             ],
             { cancelable: true }
         );
-        // Implement account deletion logic here
-        // Show confirmation dialog
-        // Remove user data
-        // Navigate to login or welcome screen
-        //navigation.navigate('Login');
     };
 
     const deleteAccount = () => {
-        // Perform account deletion logic here
         console.log('Deleting account...');
-        // Navigate to appropriate screen after deletion
-        navigation.navigate('Login');
+        navigation.navigate('Login-email');
     };
 
 
@@ -97,7 +101,7 @@ const Menu = ({ navigation }) => {
             </TouchableOpacity>
 
             <Image
-                //source={require('../assets/logo-removebg.png')}
+                source={require('../assets/logo-removebg.png')}
                 style={styles.logo}
                 resizeMode="contain"
             />
@@ -105,13 +109,13 @@ const Menu = ({ navigation }) => {
             <View style={styles.userSection}>
                 {user ? (
                     <View>
-                        <Text style={{ fontSize: 18, color: 'white' }}>
-                            {t('helloUser', { name: user.displayName || user.email })}
+                        <Text style={{ fontSize: 18 }}>
+                            Hello, {user.displayName || user.email}
                         </Text>
                         <Text style={styles.userEmail}>{user.email}</Text>
                     </View>
                 ) : (
-                    <Text style={{ fontSize: 18, color: 'white' }}>{t('hello')}</Text>
+                    <Text style={{ fontSize: 18, color: 'white' }}>Hello,</Text>
                 )}
             </View>
 
@@ -154,7 +158,7 @@ const Menu = ({ navigation }) => {
                         color="#fff"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.logoutButtonText}>{t('logout')}</Text>
+                    <Text style={styles.logoutButtonText}>Logout</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -167,19 +171,19 @@ const Menu = ({ navigation }) => {
                         color="#FF0000"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.deleteAccountButtonText}>{t('deleteAccount')}</Text>
+                    <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
                 </TouchableOpacity>
             </View>
 
             {showConfirmation && (
                 <View style={styles.confirmationContainer}>
-                    <Text style={styles.confirmationText}>{t('logoutConfirmation')}</Text>
+                    <Text style={styles.confirmationText}>Do you want to Logout?</Text>
                     <View style={styles.confirmationButtons}>
                         <TouchableOpacity style={styles.confirmButton} onPress={confirmLogout}>
-                            <Text style={styles.confirmButtonText}>{t('yesLogout')}</Text>
+                            <Text style={styles.confirmButtonText}>Yes, Logout</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.cancelButton} onPress={cancelLogout}>
-                            <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

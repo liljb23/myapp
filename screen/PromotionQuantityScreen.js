@@ -128,7 +128,7 @@ export default function PromotionQuantityScreen() {
 
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
           <Ionicons name="home-outline" size={24} color="#FFD700" />
           <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>

@@ -13,13 +13,14 @@ import {
   TouchableWithoutFeedback,
   Button
 } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import EntrepreneurHome from './EntrepreneurHome';
 import { useAuth } from '../screen/AuthContext';
+import { FIREBASE_DB } from './FirebaseConfig';
 
 const AddServices = ({ navigation }) => {
   const { user } = useAuth();
@@ -170,7 +171,7 @@ const AddServices = ({ navigation }) => {
     }
 
     try {
-      await firestore().collection('Services').add({
+      await addDoc(collection(FIREBASE_DB, 'Services'), {
         name: serviceName,
         category: category,
         description: description,
@@ -186,7 +187,7 @@ const AddServices = ({ navigation }) => {
         rating: 0,
         reviews: 0,
         image: serviceImages[0] || '',
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
         EntrepreneurId: user.uid,
       });
 
@@ -204,9 +205,11 @@ const AddServices = ({ navigation }) => {
   // Open location picker
   const openLocationPicker = () => {
     navigation.navigate('AddMapScreen', {
-      setLocation,
-      setLatitude,
-      setLongitude
+      onLocationSelect: (address, lat, lng) => {
+        setLocation(address);
+        setLatitude(lat);
+        setLongitude(lng);
+      }
     });
   };
 
@@ -221,7 +224,12 @@ const AddServices = ({ navigation }) => {
 
       {/* Service Type Selection */}
       <Text style={styles.sectionTitle}>Type Service</Text>
-      <View style={styles.serviceTypeContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.serviceTypeScroll}
+        contentContainerStyle={styles.serviceTypeContainer}
+      >
         <TouchableOpacity
           style={[styles.serviceTypeButton, category === 'Restaurant' && styles.selectedServiceType]}
           onPress={() => setCategory('Restaurant')}>
@@ -242,7 +250,7 @@ const AddServices = ({ navigation }) => {
           <Image source={require('../assets/resort.png')} style={styles.serviceTypeIcon} />
           <Text style={styles.serviceTypeText}>Resort & Hotel</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Service Name */}
       <Text style={styles.label}>Name Service <Text style={styles.required}>*</Text></Text>
@@ -612,18 +620,21 @@ const styles = StyleSheet.create({
   },
   serviceTypeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  serviceTypeScroll: {
     marginBottom: 10,
+    marginHorizontal: 0,
   },
   serviceTypeButton: {
-    width: '30%',
+    width: '40%',
     height: 80,
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10,
+    padding: 15,
   },
   selectedServiceType: {
     borderWidth: 2,

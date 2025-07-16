@@ -25,7 +25,7 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={styles.logoContainer}>
           <Image
-            //source={require('../png/logo.png')}
+            source={require('../assets/logo-removebg.png')}
             style={[styles.logo]} 
             resizeMode="contain"
           />

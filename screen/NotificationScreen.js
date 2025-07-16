@@ -57,21 +57,7 @@ export default function NotificationScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
 
-      {/* Bottom Tab */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
-          <Ionicons name="home-outline" size={24} color="white" />
-          <Text style={styles.tabText}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('NewServices')}>
-          <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.tabText}>Add</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="notifications" size={24} color="#FFD700" />
-          <Text style={styles.tabTextActive}>Notification</Text>
-        </TouchableOpacity>
-      </View>
+  
     </View>
   );
 }

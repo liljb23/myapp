@@ -6,31 +6,34 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Alert,
-  ActivityIndicator
+  Alert
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from './AuthContext';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { FIREBASE_DB, FIREBASE_AUTH } from './FirebaseConfig';
+import { getFirestore, collection, query, where, getDocs, Timestamp, addDoc } from 'firebase/firestore';
+import { useAuth } from '../screen/AuthContext';
 import { Modal, FlatList } from 'react-native';
 
-const CampaignScreen = ({ route }) => {
-  const { serviceId } = route.params;
-  const navigation = useNavigation();
+
+const db = getFirestore();
+
+const campaignOptions = [
+  { id: 1, stars: 1, price: 1, duration: '1 Month', days: 30 },
+  { id: 2, stars: 3, price: 1200, duration: '3 Month', days: 90, recommended: true },
+  { id: 3, stars: 5, price: 2500, duration: '6 Month', days: 180 },
+];
+
+export default function CampaignScreen({ navigation, route }) {
   const { user } = useAuth();
   const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
 
   useEffect(() => {
     const fetchUserServices = async () => {
       if (!user) return;
-      const q = collection(FIREBASE_DB, 'Services');
+      const q = query(collection(db, 'Services'), where('EntrepreneurId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       const userServices = [];
       querySnapshot.forEach(doc => {
@@ -39,70 +42,54 @@ const CampaignScreen = ({ route }) => {
       setServices(userServices);
 
       // 👉 ถ้ามี route.params.service ให้ set เป็น selected
-      if (navigation.getState().routes[navigation.getState().index].params?.service) {
-        setSelectedService(navigation.getState().routes[navigation.getState().index].params.service);
+      if (route?.params?.service) {
+        setSelectedService(route.params.service);
       } else {
         setSelectedService(userServices[0]);
       }
     };
 
     fetchUserServices();
-  }, [navigation.getState().routes, navigation.getState().index, user]);
+  }, [user, route?.params?.service]);
 
-  useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        const campaignsRef = collection(FIREBASE_DB, 'Campaigns');
-        const q = query(campaignsRef, where('serviceId', '==', serviceId));
-        const querySnapshot = await getDocs(q);
-        const campaignsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setCampaigns(campaignsData);
-      } catch (error) {
-        console.error('Error fetching campaigns:', error);
-        Alert.alert('Error', 'Failed to load campaigns');
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchCampaigns();
-  }, [serviceId]);
+  const handlePurchase = async () => {
+    if (!selectedService || !selectedCampaign) {
+      Alert.alert('Please select service and campaign.');
+      return;
+    }
 
-  const handlePayment = async (campaign) => {
     try {
-      const user = FIREBASE_AUTH.currentUser;
-      if (!user) {
-        Alert.alert('Error', 'Please login to proceed with payment');
-        return;
-      }
+      const createdAt = new Date();
+      const endDate = new Date();
+      endDate.setDate(createdAt.getDate() + selectedCampaign.days);
 
-      const paymentData = {
-        userId: user.uid,
-        serviceId,
-        campaignId: campaign.id,
-        amount: campaign.price,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      };
+      // บันทึกไว้ก่อนใน Firestore
+      const docRef = await addDoc(collection(db, 'CampaignSubscriptions'), {
+        EntrepreneurId: user.uid,
+        serviceId: selectedService.id,
+        campaignId: selectedCampaign.id,
+        campaignName: `${selectedCampaign.stars} Stars - ${selectedCampaign.duration}`,
+        price: selectedCampaign.price,
+        duration: selectedCampaign.duration,
+        days: selectedCampaign.days,
+        createdAt: Timestamp.fromDate(createdAt),
+        endDate: Timestamp.fromDate(endDate),
+        status: 'waiting_payment',
+      });
 
-      const paymentRef = await addDoc(collection(FIREBASE_DB, 'Payments'), paymentData);
-      navigation.navigate('Payment', { paymentId: paymentRef.id });
+      // ส่งไปหน้า QR PromptPay พร้อมข้อมูล
+      navigation.navigate('PaymentScreen', {
+        amount: selectedCampaign.price,
+        campaignName: `${selectedCampaign.stars} Stars - ${selectedCampaign.duration}`,
+        campaignId: docRef.id
+      });
+
     } catch (error) {
-      console.error('Error creating payment:', error);
-      Alert.alert('Error', 'Failed to process payment');
+      console.error('Error saving campaign:', error);
+      Alert.alert('Error', 'Failed to process. Please try again.');
     }
   };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#014737" />
-      </View>
-    );
-  }
 
   return (
     <ScrollView style={styles.container}>
@@ -111,7 +98,7 @@ const CampaignScreen = ({ route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Feather name="chevron-left" size={40} color="white" />
         </TouchableOpacity>
-        {/*<Image source={require('../assets/logo-removebg.png')} style={styles.logo} />*/}
+        <Image source={require('../assets/logo-removebg.png')} style={styles.logo} />
       </View>
 
       {/* Tabs */}
@@ -166,7 +153,7 @@ const CampaignScreen = ({ route }) => {
       {/* Campaign Options */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Select a campaign</Text>
-        {campaigns.map(c => (
+        {campaignOptions.map(c => (
           <TouchableOpacity
             key={c.id}
             style={[styles.campaignOption, selectedCampaign?.id === c.id && styles.selectedOption, c.recommended && styles.recommendedOption]}
@@ -191,8 +178,8 @@ const CampaignScreen = ({ route }) => {
         <Text style={styles.durationText}>
           Campaign {selectedCampaign?.price?.toLocaleString()} THB / {selectedCampaign?.duration || '-'}
         </Text>
-        <TouchableOpacity style={styles.purchaseButton} onPress={() => handlePayment(selectedCampaign)}>
-          <Text style={styles.purchaseText}>Proceed to Payment</Text>
+        <TouchableOpacity style={styles.purchaseButton} onPress={handlePurchase}>
+          <Text style={styles.purchaseText}>Purchase</Text>
         </TouchableOpacity>
         <Text style={styles.footerNote}>
           By proceeding, you agree to HalalWay promotional program, payment terms,
@@ -380,11 +367,4 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });
-
-export default CampaignScreen;

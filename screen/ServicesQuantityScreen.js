@@ -16,6 +16,15 @@ import {
 } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
 
+const ALLOWED_CATEGORIES = [
+  'Restaurant',
+  'Beauty & Salon',
+  'Prayer Space',
+  'Mosque',
+  'Tourist attraction',
+  'Resort & Hotel',
+];
+
 export default function ServicesQuantityScreen() {
   const navigation = useNavigation();
   const [services, setServices] = useState([]);
@@ -32,9 +41,6 @@ export default function ServicesQuantityScreen() {
         ...doc.data(),
       }));
       setServices(servicesList);
-      // Extract unique categories
-      const uniqueCategories = Array.from(new Set(servicesList.map(s => s.category).filter(Boolean)));
-      setCategories(['All', ...uniqueCategories]);
     } catch (e) {
       console.error('🔥 Error fetching services:', e);
     } finally {
@@ -44,6 +50,7 @@ export default function ServicesQuantityScreen() {
 
   useEffect(() => {
     fetchServices();
+    setCategories(['All', ...ALLOWED_CATEGORIES]);
   }, []);
 
   // Filtered services based on search and category
@@ -92,8 +99,17 @@ export default function ServicesQuantityScreen() {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.avatarContainer}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.serviceImage} />
+          {item.image || (Array.isArray(item.serviceImages) && item.serviceImages.length > 0) ? (
+            <Image
+              source={{
+                uri:
+                  item.image ||
+                  (Array.isArray(item.serviceImages) && item.serviceImages.length > 0
+                    ? item.serviceImages[0]
+                    : undefined)
+              }}
+              style={styles.serviceImage}
+            />
           ) : (
             <Ionicons name="image-outline" size={40} color="#002B28" />
           )}
@@ -150,7 +166,7 @@ export default function ServicesQuantityScreen() {
           <Text style={styles.headerTitle}>Services</Text>
           <Text style={styles.quantityText}>Total: {filteredServices.length}</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('AddServices')}>
+        <TouchableOpacity onPress={() => navigation.navigate('AddServiceScreen')}>
           <Ionicons name="add-circle-outline" size={24} color="white" />
         </TouchableOpacity>
       </View>
@@ -198,7 +214,7 @@ export default function ServicesQuantityScreen() {
       )}
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
           <Ionicons name="home-outline" size={24} color="#FFD700" />
           <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>

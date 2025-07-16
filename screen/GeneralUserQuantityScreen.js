@@ -119,7 +119,7 @@ export default function GeneralUserQuantityScreen() {
       <View style={styles.cardFooter}>
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => navigation.navigate('EditUser', { user: item })}
+          onPress={() => navigation.navigate('EditUserScreen', { user: item })}
         >
           <Ionicons name="create-outline" size={20} color="#002B28" />
           <Text style={styles.actionButtonText}>Edit</Text>

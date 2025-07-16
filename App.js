@@ -3,7 +3,7 @@
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -11,7 +11,6 @@ import { FIREBASE_AUTH, FIREBASE_DB } from './screen/FirebaseConfig';
 import { AuthProvider } from './screen/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Ionicons } from '@expo/vector-icons';
-import { i18nInitPromise } from './screen/i18n';
 
 // Import all screens
 import Register from './screen/Register';
@@ -57,6 +56,8 @@ import EditService from './screen/EditService';
 import EditUserScreen from './screen/EditUserScreen';
 import AddServices from './screen/AddServices';
 import AddPromotionScreen from './screen/AddPromotionScreen';
+import EditServiceEntrepreneur from './screen/EditServiceEntrepreneur';
+
 
 // Create navigators
 const Stack = createStackNavigator();
@@ -65,6 +66,8 @@ const AuthStack = createStackNavigator();
 const GeneralUserStack = createStackNavigator();
 const EntrepreneurStack = createStackNavigator();
 const GuestStack = createStackNavigator();
+
+const navigationRef = createNavigationContainerRef();
 
 // Auth navigator for login/register screens
 const AuthNavigator = () => (
@@ -75,7 +78,7 @@ const AuthNavigator = () => (
       headerTintColor: '#fff',
     }}
   >
-    <AuthStack.Screen name="HomeScreen" component={HomeScreen} options={{ headerShown: false }} />
+    <AuthStack.Screen name="HomeScreen" component={Home} options={{ headerShown: false }} />
     <AuthStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <AuthStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
@@ -85,6 +88,7 @@ const AuthNavigator = () => (
 // Guest user tab navigator - allows access to limited features without login
 const GuestTabs = () => (
   <Tab.Navigator
+    initialRouteName="HomeTab"
     screenOptions={({ route }) => ({
       tabBarIcon: ({ focused, color, size }) => {
         let iconName;
@@ -111,7 +115,7 @@ const GuestTabs = () => (
   >
     <Tab.Screen
       name="HomeTab"
-      component={HomeScreen}
+      component={Home}
       options={{ headerShown: false, title: 'Home' }}
     />
     <Tab.Screen name="DiscountTab" component={Discount} options={{ headerShown: false, title: 'Discount' }} />
@@ -123,6 +127,7 @@ const GuestTabs = () => (
 // Guest stack for non-logged in users
 const GuestStackNavigator = () => (
   <GuestStack.Navigator
+    initialRouteName="GuestTabs"
     screenOptions={{
       ...TransitionPresets.SlideFromRightIOS,
       headerStyle: { backgroundColor: '#063c2f' },
@@ -141,7 +146,7 @@ const GuestStackNavigator = () => (
     <GuestStack.Screen name="Register" component={Register} options={{ headerShown: false }} />
     <GuestStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <GuestStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
-    <GuestStack.Screen name="Menu" component={Menu} options={{ headerShown: false }} />
+    <GuestStack.Screen name="Menu" component={Menu} options={{ headerShown: false, unmountOnBlur: true }} />
   </GuestStack.Navigator>
 );
 
@@ -219,6 +224,7 @@ const EntrepreneurTabs = ({ user, onLogout }) => (
       name="CampaignsTab"
       component={CampaignScreen}
       options={{ title: 'Campaigns' }}
+      initialParams={{}}
     />
   </Tab.Navigator>
 );
@@ -248,6 +254,7 @@ const GeneralUserStackNavigator = ({ user, onLogout }) => (
     <GeneralUserStack.Screen name="EditProfile" component={EditProfile} options={{ headerShown: false }} />
     <GeneralUserStack.Screen name="Menu" component={Menu} options={{ headerShown: false }} />
     <GeneralUserStack.Screen name="Search" component={Search} options={{ headerShown: false }} />
+    <GeneralUserStack.Screen name="NotificationScreen" component={NotificationScreen} options={{ headerShown: false }} />
   </GeneralUserStack.Navigator>
 );
 
@@ -268,7 +275,7 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
       {props => <EntrepreneurTabs {...props} user={user} onLogout={onLogout} />}
     </EntrepreneurStack.Screen>
     <EntrepreneurStack.Screen name="EntrepreneurHome" component={EntrepreneurHome} options={{ headerShown: false }} />
-    <EntrepreneurStack.Screen name="NewServices" component={NewServices} options={{ headerShown: true }} />
+    <EntrepreneurStack.Screen name="AddServices" component={AddServices} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="Menu" component={Menu} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="AddMapScreen" component={AddMapScreen} />
     <EntrepreneurStack.Screen name="PaymentScreen" component={PaymentScreen} />
@@ -277,6 +284,8 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
     <EntrepreneurStack.Screen name="LanguageSettings" component={LanguageSettings} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
     <EntrepreneurStack.Screen name="CampaignScreen" component={CampaignScreen} />
+    <EntrepreneurStack.Screen name="EditServiceEntrepreneur" component={EditServiceEntrepreneur} />
+
 
   </EntrepreneurStack.Navigator>
 );
@@ -318,7 +327,6 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (currentUser) => {
@@ -342,12 +350,21 @@ export default function App() {
       setLoading(false);
     });
 
-    i18nInitPromise.then(() => setReady(true));
-
     return () => unsubscribe();
   }, []);
 
-  if (!ready) return null;
+  useEffect(() => {
+    const unsubscribe = FIREBASE_AUTH.onAuthStateChanged(user => {
+      if (!user) {
+          navigationRef.current?.reset({
+              index: 0,
+              routes: [{ name: 'GuestTabs' }]
+          });
+      }
+    });
+    
+    return unsubscribe;
+  }, []);
 
   if (loading) {
     return (
@@ -360,7 +377,7 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         {!user ? (
           <GuestStackNavigator />
         ) : role === "Admin" ? (

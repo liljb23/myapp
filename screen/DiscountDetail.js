@@ -10,23 +10,52 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
+import { doc, runTransaction } from 'firebase/firestore';
+import { FIREBASE_DB } from './FirebaseConfig';
 
 const { width } = Dimensions.get('window');
 
 const DiscountDetail = ({ route }) => {
-  const { t } = useTranslation();
   const navigation = useNavigation();
   const { discount } = route.params;
 
   const [isUsed, setIsUsed] = useState(false);
+  const [remaining, setRemaining] = useState(discount.remaining);
 
-  const handleUseDiscount = () => {
-    setIsUsed(true);
-    // สามารถเพิ่มการ Redirect หรือการสร้างโค้ดส่วนลดได้ที่นี่
+  let expiryText = '';
+  if (discount.validUntil) {
+    const date =
+      discount.validUntil.seconds
+        ? new Date(discount.validUntil.seconds * 1000)
+        : new Date(discount.validUntil);
+    expiryText = `Valid until ${date.toLocaleDateString()}`;
+  }
+
+  // DEBUG
+  //const debugInfo = JSON.stringify({ ...discount, remaining }, null, 2);
+
+  // คูปอง
+  const handleUseDiscount = async () => {
+    if (isUsed || remaining === 0) return;
+    try {
+      const promoRef = doc(FIREBASE_DB, 'promotions', discount.id);
+      await runTransaction(FIREBASE_DB, async (transaction) => {
+        const promoDoc = await transaction.get(promoRef);
+        if (!promoDoc.exists()) throw 'Promotion not found';
+        const current = promoDoc.data().remaining ?? 0;
+        if (current <= 0) throw 'Coupon limit reached';
+        transaction.update(promoRef, { remaining: current - 1 });
+        setRemaining(current - 1);
+      });
+      setIsUsed(true);
+      Alert.alert('Success', 'บันทึกคูปองสำเร็จ!');
+    } catch (e) {
+      Alert.alert('Error', e.toString());
+    }
   };
 
   return (
@@ -34,12 +63,18 @@ const DiscountDetail = ({ route }) => {
       <StatusBar barStyle="light-content" />
       <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
-          <Image 
-            source={discount.image} 
-            style={styles.image}
-            resizeMode="cover"
-          />
-          <TouchableOpacity 
+          {discount.shopImage ? (
+            <Image
+              source={{ uri: discount.shopImage }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.image, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }]}>
+              <Feather name="image" size={32} color="#ccc" />
+            </View>
+          )}
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
@@ -50,29 +85,60 @@ const DiscountDetail = ({ route }) => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.restaurantName}>{discount.name}</Text>
-          
+          <Text style={styles.restaurantName}>{discount.shopName || discount.name || 'Discount'}</Text>
+          {discount.shopDistance && discount.shopDistance !== '-' ? (
+            <View style={styles.distanceRow}>
+              <Feather name="map-pin" size={14} color="#014737" />
+              <Text style={styles.distanceText}>{discount.shopDistance}</Text>
+            </View>
+          ) : null}
           <View style={styles.discountInfo}>
-            <Text style={styles.discountText}>{t('discountAmount', { amount: discount.discount })}</Text>
-            <Text style={styles.expiry}>{t('expiresIn', { date: discount.expiry })}</Text>
+            <Text style={styles.discountText}>
+              Discount{' '}
+              <Text style={styles.discountAmount}>
+                {discount.discount ? `${discount.discount}% OFF` : ''}
+              </Text>
+            </Text>
+            {expiryText ? (
+              <Text style={styles.expiry}>{expiryText}</Text>
+            ) : null}
           </View>
 
           <Text style={styles.description}>
-            {discount.description || "A discount code can only be used when booking a hotel room."}
+            {discount.description ||
+              'A discount code can only be used when booking a hotel room.'}
           </Text>
+
+          {/* DEBUG SECTION
+          <View style={styles.debugBox}>
+            <Text style={{ fontWeight: 'bold', color: '#c00' }}>DEBUG:</Text>
+            <Text style={{ fontSize: 12, color: '#333' }}>{debugInfo}</Text>
+          </View> */}
         </View>
       </ScrollView>
 
-      {/* 🔘 ปุ่มใช้ส่วนลด */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity 
-          style={[styles.useButton, isUsed && styles.usedButton]}
+        <TouchableOpacity
+          style={[
+            styles.useButton,
+            isUsed && styles.usedButton,
+            remaining === 0 && styles.usedButton,
+          ]}
           onPress={handleUseDiscount}
           activeOpacity={0.8}
-          disabled={isUsed}
+          disabled={isUsed || remaining === 0}
         >
-          <Text style={[styles.useButtonText, isUsed && styles.usedButtonText]}>
-            {isUsed ? t('discountUsed') : t('useDiscount')}
+          <Text
+            style={[
+              styles.useButtonText,
+              (isUsed || remaining === 0) && styles.usedButtonText,
+            ]}
+          >
+            {remaining === 0
+              ? 'Coupon Limit Reached'
+              : isUsed
+              ? 'Discount Used'
+              : 'Use Discount'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -132,6 +198,17 @@ const styles = StyleSheet.create({
     color: '#063c2f',
     marginBottom: 10,
   },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 5,
+  },
+  distanceText: {
+    fontSize: 12,
+    color: '#014737',
+    fontWeight: '500',
+  },
   discountInfo: {
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
@@ -142,6 +219,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#063c2f',
+  },
+  discountAmount: {
+    color: '#FDCB02',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   expiry: {
     fontSize: 14,
@@ -188,6 +270,12 @@ const styles = StyleSheet.create({
   },
   usedButtonText: {
     color: '#fff',
+  },
+  debugBox: {
+    marginTop: 18,
+    backgroundColor: '#ffeaea',
+    borderRadius: 8,
+    padding: 10,
   },
 });
 

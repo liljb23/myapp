@@ -27,13 +27,11 @@ import {
 } from "@expo/vector-icons";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
-import { useTranslation } from 'react-i18next';
 
 const Search = () => {
-  const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute();
-  const initialCategory = route.params?.category || null;
+  const initialCategory = route.params?.category || "All";
   const [searchText, setSearchText] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("Near me");
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -49,7 +47,7 @@ const Search = () => {
   const [markerAnimation] = useState(new Animated.Value(0));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(0.1); // Initial zoom level
+  const [zoomLevel, setZoomLevel] = useState(0.1);
   const [region, setRegion] = useState({
     latitude: 13.7563,
     longitude: 100.5018,
@@ -127,14 +125,13 @@ const Search = () => {
     Yasothon: { latitude: 15.7944, longitude: 104.1453 },
   };
 
-  // Add the getCategoryIcon function
   const getCategoryIcon = (category) => {
     switch (category?.toLowerCase()) {
       case "restaurant":
         return "restaurant";
-      case "Beauty & salon":
+      case "beauty & salon":
         return "scissors";
-      case "Resort & Hotel":
+      case "resort & hotel":
         return "home";
       case "tourist attraction":
         return "map";
@@ -180,7 +177,6 @@ const Search = () => {
     }
   }, [selectedProvince]);
 
-  //แสดงตำแหน่งปัจจุบันของผู้ใช้และตำแหน่งที่ตั้งของบริการที่กรองแล้ว
   useEffect(() => {
     const fetchUserLocation = async () => {
       if (selectedProvince === "Near me") {
@@ -205,7 +201,6 @@ const Search = () => {
     fetchUserLocation();
   }, [selectedProvince]);
 
-  // For the map markers, we need to map the icon names to actual components
   const getMarkerIcon = (category) => {
     const iconName = getCategoryIcon(category);
     return (
@@ -227,12 +222,11 @@ const Search = () => {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const servicesCol = collection(FIREBASE_DB, 'Services');
-        const querySnapshot = await getDocs(servicesCol);
-        const serviceList = [];
-        querySnapshot.forEach((doc) => {
-          serviceList.push({ id: doc.id, ...doc.data() });
-        });
+        const querySnapshot = await getDocs(collection(FIREBASE_DB, "Services"));
+        const serviceList = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setServices(serviceList);
         setFilteredServices(serviceList);
       } catch (error) {
@@ -245,27 +239,29 @@ const Search = () => {
     fetchServices();
   }, []);
 
-  // 🚀 โหลดข้อมูลจาก Firestore ตาม Category ที่เลือก
   const fetchServices = async (category) => {
-    try {
-      const servicesCol = collection(FIREBASE_DB, 'Services');
-      let q;
-      if (category !== "All") {
-        q = query(servicesCol, where('category', '==', category));
-      } else {
-        q = servicesCol;
-      }
-      const snapshot = await getDocs(q);
-      const serviceList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setServices(serviceList);
-      setFilteredServices(serviceList);
-    } catch (error) {
-      console.error("🔥 Error fetching services: ", error.message);
+  try {
+    let q;
+    if (category !== "All") {
+      q = query(
+        collection(FIREBASE_DB, "Services"),
+        where("category", "==", category)
+      );
+    } else {
+      q = collection(FIREBASE_DB, "Services");
     }
-  };
+    const snapshot = await getDocs(q);
+    const serviceList = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setServices(serviceList);
+    setFilteredServices(serviceList);
+  } catch (error) {
+    console.error("🔥 Error fetching services: ", error.message);
+  }
+};
 
   // ✅ โหลดข้อมูลเริ่มต้นจาก Firebase
   useEffect(() => {
@@ -332,21 +328,26 @@ const Search = () => {
     async (province, category) => {
       setIsLoading(true);
       try {
-        let servicesCollection = collection(FIREBASE_DB, 'Services');
-        let queryConstraints = [];
-
-        if (province !== "Near me") {
-          queryConstraints.push(query(servicesCollection, where('province', '==', province)));
+        let q;
+        if (province !== "Near me" && category !== "All") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("province", "==", province),
+            where("category", "==", category)
+          );
+        } else if (province !== "Near me") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("province", "==", province)
+          );
+        } else if (category !== "All") {
+          q = query(
+            collection(FIREBASE_DB, "Services"),
+            where("category", "==", category)
+          );
+        } else {
+          q = collection(FIREBASE_DB, "Services");
         }
-
-        if (category !== "All") {
-          queryConstraints.push(query(servicesCollection, where('category', '==', category)));
-        }
-
-        const q =
-          queryConstraints.length > 0
-            ? query(servicesCollection, where(...queryConstraints))
-            : servicesCollection;
 
         const snapshot = await getDocs(q);
         const serviceList = snapshot.docs.map((doc) => ({
@@ -354,21 +355,19 @@ const Search = () => {
           ...doc.data(),
           distance: userLocation
             ? getDistanceFromLatLonInKm(
-              userLocation.latitude,
-              userLocation.longitude,
-              doc.data().latitude,
-              doc.data().longitude
-            )
+                userLocation.latitude,
+                userLocation.longitude,
+                doc.data().latitude,
+                doc.data().longitude
+              )
             : null,
         }));
 
-        // Sort by distance if "Near me" is selected
         if (province === "Near me" && userLocation) {
           serviceList.sort(
             (a, b) => (a.distance || Infinity) - (b.distance || Infinity)
           );
         }
-        // 🔍 ค้นหาข้อมูลเมื่อพิมพ์
         setFilteredServices(serviceList);
         setServices(serviceList);
       } catch (err) {
@@ -381,7 +380,6 @@ const Search = () => {
     [userLocation]
   );
 
-  // เปิดเส้นทางบน Google Maps หรือ Apple Maps
   const openDirections = useCallback((latitude, longitude) => {
     const scheme = Platform.select({
       ios: "maps:0,0?q=",
@@ -415,7 +413,7 @@ const Search = () => {
         }
         return null;
       })
-      .filter((service) => service && service.distance < 10) // คัดเฉพาะที่อยู่ในรัศมี 10 กม.
+      .filter((service) => service && service.distance < 10)
       .sort((a, b) => a.distance - b.distance);
 
     setFilteredServices(nearbyServices);
@@ -433,7 +431,6 @@ const Search = () => {
     </TouchableOpacity>
   );
 
-  // Enhanced search functionality
   const handleSearch = (text) => {
     setSearchText(text);
     const filtered = services.filter((service) =>
@@ -442,7 +439,6 @@ const Search = () => {
     setFilteredServices(filtered);
   };
 
-  // Custom Marker Component
   const CustomMarker = ({ service }) => {
     const isSelected = selectedMarker?.id === service.id;
     return (
@@ -509,7 +505,6 @@ const Search = () => {
     return R * c;
   };
 
-  // Render helpers
   const renderListView = () => (
     <ScrollView contentContainerStyle={styles.resultsContainer}>
       {isLoading ? (
@@ -521,7 +516,16 @@ const Search = () => {
             style={styles.card}
             onPress={() => setSelectedPlace(service)}
           >
-            <Image source={{ uri: service.image }} style={styles.cardImage} />
+            <Image
+              source={{
+                uri:
+                  service.image ||
+                  (Array.isArray(service.serviceImages) && service.serviceImages.length > 0
+                    ? service.serviceImages[0]
+                    : undefined)
+              }}
+              style={styles.cardImage}
+            />
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {service.name}
@@ -536,10 +540,10 @@ const Search = () => {
                   {service.location}
                 </Text>
               </View>
-              {service?.distance && !isNaN(service.distance) && (
+              {service?.distance && (
                 <View style={styles.cardMetaContainer}>
                   <Text style={styles.cardDistance}>
-                    {parseFloat(service.distance).toFixed(1)} km away
+                    {service.distance} km away
                   </Text>
                 </View>
               )}
@@ -561,23 +565,18 @@ const Search = () => {
         style={{ flex: 1 }}
         showsUserLocation={true}
         followsUserLocation={true}
-        region={{
-          latitude: region.latitude,
-          longitude: region.longitude,
-          latitudeDelta: zoomLevel,
-          longitudeDelta: zoomLevel,
-        }}
-        onRegionChangeComplete={setRegion}
+        region={region}
+        // onRegionChangeComplete={(newRegion) => {
+        //   if (
+        //     Math.abs(region.latitude - newRegion.latitude) > 0.00001 ||
+        //     Math.abs(region.longitude - newRegion.longitude) > 0.00001 ||
+        //     Math.abs(region.latitudeDelta - newRegion.latitudeDelta) > 0.00001 ||
+        //     Math.abs(region.longitudeDelta - newRegion.longitudeDelta) > 0.00001
+        //   ) {
+        //     setRegion(newRegion);
+        //   }
+        // }}
       >
-        {/* Zoom Controls */}
-        <View style={styles.zoomControls}>
-          <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
-            <Text style={styles.zoomButtonText}>+</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
-            <Text style={styles.zoomButtonText}>-</Text>
-          </TouchableOpacity>
-        </View>
         {/* 📍 Marker สำหรับตำแหน่งปัจจุบัน */}
         {userLocation && (
           <Marker coordinate={userLocation} title="You are here">
@@ -618,7 +617,6 @@ const Search = () => {
               title={service.name}
               description={service.category}
               onPress={() => {
-                console.log("Selected Marker:", service.name);
                 setSelectedPlace(service);
                 setSelectedMarker(service.id);
               }}
@@ -626,12 +624,21 @@ const Search = () => {
               {selectedMarker === service.id ? (
                 <FontAwesome name="map-marker" size={36} color="red" />
               ) : (
-                getCategoryIcon(service.category)
+                <Feather name={getCategoryIcon(service.category)} size={24} color="#014737" />
               )}
             </Marker>
           );
         })}
       </MapView>
+      {/* ย้าย Zoom Controls มานอก MapView */}
+      <View style={styles.zoomControls}>
+        <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
+          <Text style={styles.zoomButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
+          <Text style={styles.zoomButtonText}>-</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -691,7 +698,7 @@ const Search = () => {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder={t('searchPlaceholder')}
+            placeholder="Search..."
             placeholderTextColor="#666"
             value={searchText}
             onChangeText={setSearchText}
@@ -736,7 +743,7 @@ const Search = () => {
         >
           <Feather name="map-pin" size={16} color="#014737" />
           <Text style={styles.filterButtonText}>
-            {t('sortBy', { province: selectedProvince })}
+            Sort by: {selectedProvince}
           </Text>
           <Feather name="chevron-down" size={16} color="#014737" />
         </TouchableOpacity>
@@ -760,7 +767,13 @@ const Search = () => {
       {selectedPlace && (
         <View style={styles.popupCard}>
           <Image
-            source={{ uri: selectedPlace.image }}
+            source={{
+              uri:
+                selectedPlace.image ||
+                (Array.isArray(selectedPlace.serviceImages) && selectedPlace.serviceImages.length > 0
+                  ? selectedPlace.serviceImages[0]
+                  : undefined)
+            }}
             style={styles.popupImage}
             //defaultSource={require("../assets/photo.png")}
           />
@@ -782,7 +795,7 @@ const Search = () => {
                   navigation.navigate("Detail", { place: selectedPlace })
                 }
               >
-                <Text style={styles.detailsText}>{t('details')}</Text>
+                <Text style={styles.detailsText}>Details</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.directionsButton}
@@ -793,7 +806,7 @@ const Search = () => {
                   )
                 }
               >
-                <Text style={styles.directionsText}>{t('directions')}</Text>
+                <Text style={styles.directionsText}>Directions</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -810,7 +823,7 @@ const Search = () => {
       <Modal visible={provinceModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('selectProvince')}</Text>
+            <Text style={styles.modalTitle}>Select Province</Text>
             <ScrollView>
               <TouchableOpacity
                 style={styles.modalOption}
@@ -819,7 +832,7 @@ const Search = () => {
                   setProvinceModalVisible(false);
                 }}
               >
-                <Text style={styles.optionText}>{t('nearMe')}</Text>
+                <Text style={styles.optionText}>Near me</Text>
               </TouchableOpacity>
               {Object.keys(provinces).map((province) => (
                 <TouchableOpacity
@@ -838,7 +851,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setProvinceModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
+              <Text style={styles.confirmButtonText}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -848,7 +861,7 @@ const Search = () => {
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
+            <Text style={styles.modalTitle}>Select Category</Text>
             <ScrollView>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -874,7 +887,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setCategoryModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
+              <Text style={styles.confirmButtonText}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -20,7 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-export default function EditService() {
+export default function EditServiceEntrepreneur() {
   const navigation = useNavigation();
   const route = useRoute();
   const { service } = route.params;
@@ -150,7 +150,7 @@ export default function EditService() {
   };
 
   const handleUpdate = async () => {
-    if (!name || !category || !location || !phone || !image ) {
+    if (!name || !category || !location || !phone ) {
       Alert.alert('Error', 'Please fill in all required fields: Service Name, Category, Location, and Phone Number.');
       return;
     }
@@ -193,21 +193,9 @@ export default function EditService() {
   };
 
   const currentUser = FIREBASE_AUTH.currentUser;
-  const [userRole, setUserRole] = useState(null);
+  const isOwner = service.EntrepreneurId === currentUser?.uid;
 
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (currentUser) {
-        const userDoc = await getDoc(doc(FIREBASE_DB, 'user', currentUser.uid));
-        if (userDoc.exists()) {
-          setUserRole(userDoc.data().role);
-        }
-      }
-    };
-    fetchUserRole();
-  }, [currentUser]);
-
-  if (userRole !== 'Admin') {
+  if (!isOwner) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -267,27 +255,6 @@ export default function EditService() {
             onPress={() => setCategory('Resort & Hotel')}>
             <Image source={require('../assets/resort.png')} style={styles.serviceTypeIcon} />
             <Text style={[styles.serviceTypeText, category === 'Resort & Hotel' && styles.selectedServiceTypeText]}>Resort & Hotel</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.serviceTypeButton, category === 'Prayer Space' && styles.selectedServiceType]}
-            onPress={() => setCategory('Prayer Space')}>
-            <Image source={require('../assets/prayer.png')} style={styles.serviceTypeIcon} />
-            <Text style={[styles.serviceTypeText, category === 'Prayer Space' && styles.selectedServiceTypeText]}>Prayer Space</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.serviceTypeButton, category === 'Mosque' && styles.selectedServiceType]}
-            onPress={() => setCategory('Mosque')}>
-            <Image source={require('../assets/night-prayer.png')} style={styles.serviceTypeIcon} />
-            <Text style={[styles.serviceTypeText, category === 'Mosque' && styles.selectedServiceTypeText]}>Mosque</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.serviceTypeButton, category === 'Tourist attraction' && styles.selectedServiceType]}
-            onPress={() => setCategory('Tourist attraction')}>
-            <Image source={require('../assets/traveling.png')} style={styles.serviceTypeIcon} />
-            <Text style={[styles.serviceTypeText, category === 'Tourist attraction' && styles.selectedServiceTypeText]}>Tourist attraction</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -416,26 +383,7 @@ export default function EditService() {
           </TouchableWithoutFeedback>
         </Modal>
 
-      
-
-        <Text style={styles.label}>Phone Number <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="Enter phone number"
-          keyboardType="phone-pad"
-        />
-
-        <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          value={category}
-          onChangeText={setCategory}
-          placeholder="Enter category"
-        />
-
-<Text style={styles.label}>Add Photos for Service <Text style={styles.fileTypes}>(File .png .jpg .jpeg )</Text></Text>
+        <Text style={styles.label}>Add Photos for Service <Text style={styles.fileTypes}>(File .png .jpg .jpeg)</Text></Text>
         <TouchableOpacity onPress={pickServiceImages} style={styles.uploadBox}>
           {serviceImages.length === 0 ? (
             <View style={styles.uploadPlaceholder}>
@@ -462,6 +410,23 @@ export default function EditService() {
             </View>
           )}
         </TouchableOpacity>
+
+        <Text style={styles.label}>Phone Number <Text style={styles.required}>*</Text></Text>
+        <TextInput
+          style={styles.input}
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Enter phone number"
+          keyboardType="phone-pad"
+        />
+
+        <Text style={styles.label}>Category <Text style={styles.required}>*</Text></Text>
+        <TextInput
+          style={styles.input}
+          value={category}
+          onChangeText={setCategory}
+          placeholder="Enter category"
+        />
 
         <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
           <Text style={styles.updateButtonText}>Update Service</Text>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,36 @@ import {
   Linking,
   Platform,
   Alert,
+  Dimensions,
 } from "react-native";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
 import ReviewForm from "./ReviewForm";
 import { useAuth } from './AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { useTranslation } from 'react-i18next';
+import * as Location from 'expo-location';
+import { updateCampaignReport } from './Home';
+
+const { width } = Dimensions.get("window");
+
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return "";
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return d.toFixed(1);
+}
 
 const Detail = () => {
   const navigation = useNavigation();
@@ -29,22 +50,94 @@ const Detail = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [displayLocation, setDisplayLocation] = useState(
+    typeof place.location === "string" && place.location.match(/^[-\d.]+,\s*[-\d.]+$/)
+      ? ""
+      : place.location
+  );
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setUserLocation(null);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation(location.coords);
+    })();
+  }, []);
+
+  // slider
+  const images = Array.isArray(place.serviceImages) && place.serviceImages.length > 0
+    ? place.serviceImages
+    : place.image
+      ? [place.image]
+      : [];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef();
 
   // Fetch reviews from Firebase Firestore
   useEffect(() => {
     if (!place.id) return;
-    
     const reviewsRef = collection(FIREBASE_DB, 'Reviews');
     const q = query(reviewsRef, where('placeId', '==', place.id));
-
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const reviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setReviewsData(reviews);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, [place.id]);
+
+  useEffect(() => {
+    if (
+      typeof place.location === "string" &&
+      place.location.match(/^[-\d.]+,\s*[-\d.]+$/)
+    ) {
+      const [lat, lng] = place.location.split(",").map(Number);
+      setLocationLoading(true);
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.display_name) setDisplayLocation(data.display_name);
+          setLocationLoading(false);
+        })
+        .catch(() => {
+          setLocationLoading(false);
+        });
+    } else {
+      setDisplayLocation(place.location);
+      setLocationLoading(false);
+    }
+  }, [place.location]);
+
+  // เช็คว่า favorite หรือยัง
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!user || !place.id) return;
+      const favRef = doc(FIREBASE_DB, 'user', user.uid, 'favorites', place.id);
+      const favSnap = await getDoc(favRef);
+      setIsFavorite(favSnap.exists());
+    };
+    checkFavorite();
+  }, [user, place.id]);
+
+  // toggle favorite
+  const handleToggleFavorite = async () => {
+    if (!user || !place.id) return;
+    const favRef = doc(FIREBASE_DB, 'user', user.uid, 'favorites', place.id);
+    if (isFavorite) {
+      await deleteDoc(favRef);
+      setIsFavorite(false);
+    } else {
+      await setDoc(favRef, { createdAt: new Date() });
+      setIsFavorite(true);
+    }
+  };
 
   const handleReviewButtonPress = () => {
     if (!user) {
@@ -63,6 +156,13 @@ const Detail = () => {
 
   const handleCall = () => {
     if (place?.phone) {
+      const payload = {
+        serviceId: place.id,
+        type: 'conversion'
+      };
+      if (place.campaignId !== undefined) payload.campaignId = place.campaignId;
+      if (place.entrepreneurId !== undefined) payload.entrepreneurId = place.entrepreneurId;
+      updateCampaignReport(payload);
       Linking.openURL(`tel:${place.phone}`);
     }
   };
@@ -81,6 +181,24 @@ const Detail = () => {
     }
   };
 
+  // คำนวณระยะทาง
+  const distance =
+    userLocation && place.latitude && place.longitude
+      ? getDistanceFromLatLonInKm(
+          userLocation.latitude,
+          userLocation.longitude,
+          place.latitude,
+          place.longitude
+        )
+      : "";
+
+  // เวลาเปิด-ปิด
+  let operatingText = "N/A";
+  if (Array.isArray(place.operatingHours) && place.operatingHours.length > 0) {
+    const op = place.operatingHours[0];
+    operatingText = `${op.day}: ${op.openTime} - ${op.closeTime}`;
+  }
+
   if (loading || !place) {
     return (
       <View style={styles.loadingContainer}>
@@ -90,43 +208,123 @@ const Detail = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 🔙 Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Feather name="chevron-left" size={32} color="white" />
-      </TouchableOpacity>
-
-      {/* 📷 Image */}
-      <Image source={{ uri: place.image }} style={styles.mainImage} />
-
-      <View style={styles.detailContainer}>
-        <Text style={styles.title}>{t('detail')}</Text>
-
-        {/* ⭐ Rating */}
-        <View style={styles.metaContainer}>
-          <View style={styles.ratingContainer}>
-            <FontAwesome name="star" size={16} color="gold" />
-            <Text style={styles.ratingText}>{place.rating}</Text>
-            <Text style={styles.reviewCountText}>({reviewsData.length} Reviews)</Text>
+    <ScrollView style={styles.bg}>
+      <View style={styles.card}>
+        {/* Slider รูปภาพ */}
+        <View style={styles.sliderContainer}>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={e => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+              setActiveIndex(idx);
+            }}
+            scrollEventThrottle={16}
+          >
+            {images.map((img, idx) => (
+              <Image
+                key={idx}
+                source={{ uri: img }}
+                style={styles.mainImage}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+          <View style={styles.dotContainer}>
+            {images.map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.dot,
+                  activeIndex === idx && styles.dotActive
+                ]}
+              />
+            ))}
           </View>
         </View>
 
-        <Text style={styles.distance}>{place.distance} km</Text>
-        <Text style={styles.category}>({place.category})</Text>
-
-        {/* 📍 Details */}
-        <View style={styles.detailsSection}>
-          <View style={styles.infoContainer}>
-            <Feather name="map-pin" size={16} color="#014737" />
-            <Text style={styles.infoText}>{place.location}</Text>
+        {/* เนื้อหาทั้งหมดใน card */}
+        <View style={styles.innerCard}>
+          <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8}}>
+            <Text style={styles.title}>{place.name}</Text>
+            <TouchableOpacity onPress={handleToggleFavorite}>
+              <FontAwesome
+                name={isFavorite ? "heart" : "heart-o"}
+                size={24}
+                color={isFavorite ? "#d00" : "#014737"}
+              />
+            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* 📝 Reviews Section */}
-        <View style={styles.reviewsSection}>
+          <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12}}>
+            <View style={{flexDirection: "row", alignItems: "center"}}>
+              <Feather name="user" size={16} color="#014737" />
+              <Text style={styles.reviewCountText}>{reviewsData.length} Reviews</Text>
+            </View>
+            <View style={{flexDirection: "row", alignItems: "center"}}>
+              <FontAwesome name="star" size={16} color="#FDCB02" />
+              <Text style={styles.ratingText}>{place.rating ? place.rating : "-"}</Text>
+            </View>
+          </View>
+          <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8}}>
+            <Text style={styles.distance}>{distance ? `${distance} km` : ""}</Text>
+            <Text style={styles.category}>{place.category ? `(${place.category})` : ""}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.detailsSection}>
+            <Text style={styles.detailsTitle}>Details</Text>
+            <View style={styles.infoContainer}>
+              <Feather name="map-pin" size={16} color="#014737" />
+              <Text style={styles.infoText}>
+                {locationLoading
+                  ? "กำลังโหลดที่อยู่..."
+                  : displayLocation || "-"}
+              </Text>
+            </View>
+            <View style={styles.infoContainer}>
+              <Feather name="clock" size={16} color="#014737" />
+              <View style={{ flex: 1 }}>
+                {Array.isArray(place.operatingHours) && place.operatingHours.length > 0 ? (
+                  place.operatingHours.map((op, idx) => (
+                    <Text key={idx} style={styles.infoText}>
+                      {op.day}: {op.openTime} - {op.closeTime}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>N/A</Text>
+                )}
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.infoContainer, styles.phoneTouchable]}
+              onPress={handleCall}
+              activeOpacity={0.7}
+            >
+              <Feather name="phone" size={16} color="#014737" />
+              <Text style={styles.phoneText}>{place.phone || "-"}</Text>
+            </TouchableOpacity>
+            <View style={styles.infoContainer}>
+              <Feather name="check-circle" size={16} color="#014737" />
+              <Text style={styles.infoText}>
+                {place.parkingArea ? place.parkingArea : (place.available ? "Available" : "Unavailable")}
+              </Text>
+            </View>
+            {/* ปุ่ม Directions */}
+            {place.latitude && place.longitude && (
+              <TouchableOpacity style={styles.directionsBtn} onPress={handleOpenMap}>
+                <Feather name="navigation" size={16} color="white" />
+                <Text style={styles.directionsText}>Directions</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Section รีวิว */}
           <Text style={styles.reviewsSectionTitle}>Reviews</Text>
           {loading ? (
             <ActivityIndicator size="large" color="#014737" />
@@ -135,278 +333,283 @@ const Detail = () => {
               <View key={index} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Feather name="user" size={16} color="#014737" />
-                  <Text style={styles.reviewUser}>{review.username}</Text>
+                  <Text style={styles.reviewUser}>{review.username || "Anonymous User"}</Text>
                 </View>
                 <Text style={styles.reviewComment}>{review.comment}</Text>
                 <View style={styles.starContainer}>
                   {[...Array(review.rating)].map((_, i) => (
-                    <FontAwesome key={i} name="star" size={14} color="gold" />
+                    <FontAwesome key={i} name="star" size={14} color="#FDCB02" />
                   ))}
                 </View>
               </View>
             ))
           ) : (
-            <Text style={styles.noReviewText}>No reviews yet. Be the first to review!</Text>
+            <Text style={{ color: "#888" }}>No reviews yet. Be the first to review!</Text>
           )}
-          <TouchableOpacity>
-            <Text style={styles.showAllReviews}>Show all reviews</Text>
+
+          {/* ปุ่ม Show all reviews */}
+          <TouchableOpacity style={styles.showAllReviewsBtn}>
+            <Text style={styles.showAllReviewsText}>Show all reviews</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* 📝 Write Review Button */}
-        <TouchableOpacity
-          style={styles.reviewButton}
-          onPress={handleReviewButtonPress}
-        >
-          <Text style={styles.reviewButtonText}>Write your review</Text>
-        </TouchableOpacity>
+          {/* ปุ่ม Write review */}
+          <TouchableOpacity style={styles.reviewButton} onPress={handleReviewButtonPress}>
+            <Text style={styles.reviewButtonText}>Write your review</Text>
+          </TouchableOpacity>
 
-        <ReviewForm
-          visible={isReviewFormVisible}
-          onClose={() => setIsReviewFormVisible(false)}
-          placeId={place.id}
-        />
+          <ReviewForm
+            visible={isReviewFormVisible}
+            onClose={() => setIsReviewFormVisible(false)}
+            placeId={place.id}
+          />
 
-        {/* Contact Button */}
-        <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
-          <Feather name="phone" size={24} color="white" />
-          <Text style={styles.contactButtonText}>Contact</Text>
-        </TouchableOpacity>
-
-        {/* Location */}
-        {place.latitude && place.longitude && (
-          <View style={styles.locationSection}>
-            <Text style={styles.locationSectionTitle}>Location</Text>
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: place.latitude,
-                  longitude: place.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-              >
-                <Marker
-                  coordinate={{
+          {/* Location */}
+          {place.latitude && place.longitude && (
+            <View style={styles.locationSection}>
+              <Text style={styles.locationSectionTitle}>Location</Text>
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
                     latitude: place.latitude,
                     longitude: place.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
                   }}
-                  title={place.name}
-                />
-              </MapView>
-              <TouchableOpacity style={styles.openMapButton} onPress={handleOpenMap}>
-                <Text style={styles.openMapText}>Open in Maps</Text>
-              </TouchableOpacity>
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                    }}
+                    title={place.name}
+                  />
+                </MapView>
+                <TouchableOpacity style={styles.openMapButton} onPress={handleOpenMap}>
+                  <Text style={styles.openMapText}>Open in Maps</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  bg: {
     flex: 1,
+    backgroundColor: "#063c2f",
   },
-  backButton: {
-    position: "absolute",
-    left: 20,
-    top: 50,
-    zIndex: 2,
+  card: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    paddingBottom: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  innerCard: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  sliderContainer: {
+    width: "100%",
+    height: 200,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#eee",
   },
   mainImage: {
-    width: "100%",
-    height: 250,
+    width: width - 32,
+    height: 200,
+    borderRadius: 0,
   },
-  detailContainer: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingTop: 20,
-    paddingHorizontal: 20,
-    marginTop: -30, // Overlap effect
+  dotContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#ccc",
+    marginHorizontal: 4,
+  },
+  dotActive: {
+    backgroundColor: "#FDCB02",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 18,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#014737",
     marginBottom: 10,
+    textAlign: "left",
+    flex: 1,
   },
-  metaContainer: {
+  rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 6,
   },
-  ratingContainer: {
+  rowCenter: {
     flexDirection: "row",
     alignItems: "center",
   },
-  ratingText: {
-    marginLeft: 5,
-    fontSize: 16,
-    color: "#333",
+  reviewCountText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: "#014737",
     fontWeight: "bold",
   },
-  reviewCountText: {
-    marginLeft: 5,
-    fontSize: 14,
+  ratingText: {
+    marginLeft: 6,
+    fontSize: 16,
+    color: "#FDCB02",
+    fontWeight: "bold",
+  },
+  ratingTextSmall: {
+    marginLeft: 4,
+    fontSize: 13,
     color: "#666",
   },
-  favoriteButton: {
-    padding: 5,
+  distance: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 5,
   },
   category: {
     fontSize: 14,
     color: "#666",
     marginBottom: 5,
   },
-  distanceContainer: {
-    marginBottom: 15,
-  },
-  distance: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 15,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e0e0e0",
-    width: "100%",
-  },
   detailsSection: {
     backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 0,
+    padding: 0,
+    marginVertical: 0,
   },
-  detailsSectionTitle: {
-    fontSize: 16,
+  detailsTitle: {
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#014737",
+    color: "#063c2f",
     marginBottom: 10,
   },
   infoContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 16,
   },
   infoText: {
     marginLeft: 10,
     fontSize: 14,
     color: "#333",
+    flex: 1,
+    flexWrap: "wrap",
   },
-  directionsContainer: {
-    marginTop: 10,
+  phoneTouchable: {
   },
-  directionsButton: {
-    backgroundColor: "#014737",
-    padding: 12,
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  directionsText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
+  phoneText: {
     marginLeft: 10,
-  },
-  reviewsSection: {
-    marginBottom: 15,
+    fontSize: 14,
+    color: "#007A5A",
+    textDecorationLine: "underline",
+    fontWeight: "bold",
+    flex: 1,
   },
   reviewsSectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#014737",
     marginBottom: 10,
+    marginTop: 10,
   },
   reviewCard: {
-    backgroundColor: "white",
+    backgroundColor: "#f9f9f9",
     borderRadius: 10,
-    padding: 15,
+    padding: 12,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   reviewHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 4,
   },
   reviewUser: {
-    marginLeft: 10,
+    marginLeft: 8,
     fontWeight: "bold",
     color: "#014737",
   },
   reviewComment: {
-    fontSize: 14,
     color: "#666",
-    marginBottom: 10,
+    marginBottom: 6,
   },
   starContainer: {
     flexDirection: "row",
+    marginTop: 2,
   },
-  showAllReviews:{
+  showAllReviewsBtn: {
     backgroundColor: "#014737",
-    padding: 12,
     borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
     marginTop: 10,
+    marginBottom: 0,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  showAllReviewsText: {
     color: "white",
-    fontSize: 16,
     fontWeight: "bold",
-    textAlign: "center",
+    fontSize: 16,
   },
   reviewButton: {
     backgroundColor: "#014737",
-    padding: 12,
     borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
     marginTop: 10,
+    marginBottom: 20,
+    paddingVertical: 12,
+    alignItems: "center",
   },
   reviewButtonText: {
     color: "white",
-    fontSize: 16,
     fontWeight: "bold",
+    fontSize: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  contactButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#014737',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    elevation: 4,
+  directionsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#014737",
+    borderRadius: 8,
+    marginTop: 12,
+    paddingVertical: 10,
   },
-  contactButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  directionsText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 15,
     marginLeft: 8,
   },
   locationSection: {
@@ -442,4 +645,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
 export default Detail;

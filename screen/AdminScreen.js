@@ -4,9 +4,15 @@ import { collection, getDocs, getCountFromServer } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
+import { useAuth } from './AuthContext';
+import { useTranslation } from 'react-i18next';
 
 export default function AdminScreen() {
   const navigation = useNavigation();
+  const { logout } = useAuth();
+  const [user, setUser] = useState(null);
+  const { user: authUser } = useAuth();
+
 
   const [counts, setCounts] = useState({
     users: 0,
@@ -23,22 +29,35 @@ export default function AdminScreen() {
         const usersSnap = await getDocs(collection(FIREBASE_DB, 'user'));
         let generalUserCount = 0;
         let entrepreneurCount = 0;
-  
+
         usersSnap.forEach(doc => {
           const role = doc.data().role;
           if (role === 'General User') generalUserCount++;
           if (role === 'Entrepreneur') entrepreneurCount++;
         });
-  
+
+        // Get all services and count only those with allowed categories
+        const ALLOWED_CATEGORIES = [
+          'Restaurant',
+          'Beauty & Salon',
+          'Prayer Space',
+          'Mosque',
+          'Tourist attraction',
+          'Resort & Hotel',
+        ];
+        const servicesSnap = await getDocs(collection(FIREBASE_DB, 'Services'));
+        const allowedServicesCount = servicesSnap.docs.filter(doc =>
+          ALLOWED_CATEGORIES.includes(doc.data().category)
+        ).length;
+
         // Get other collection counts
-        const servicesSnap = await getCountFromServer(collection(FIREBASE_DB, 'Services'));
         const blogsSnap = await getCountFromServer(collection(FIREBASE_DB, 'Blog'));
         const promosSnap = await getCountFromServer(collection(FIREBASE_DB, 'promotions'));
-  
+
         setCounts({
           users: generalUserCount,
           entrepreneurs: entrepreneurCount,
-          services: servicesSnap.data().count,
+          services: allowedServicesCount,
           blogs: blogsSnap.data().count,
           promotions: promosSnap.data().count,
         });
@@ -59,7 +78,7 @@ export default function AdminScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          // source={require('../png/logo-removebg.png')}
+          source={require('../assets/logo-removebg.png')}
           style={{ width: 150, height: 150, alignItems: 'center' }}
           resizeMode="contain"
         />
@@ -67,9 +86,30 @@ export default function AdminScreen() {
       </View>
 
       {/* Greeting */}
-      <View style={styles.greeting}>
-        <Text style={styles.helloText}>Hello, (Admin)</Text>
-        <Text style={styles.emailText}>admin@halalway.com</Text>
+      <View style={styles.greetingRow}>
+        <View>
+          <Text style={{ fontSize: 18 }}>
+            Hello, {
+              (authUser?.username
+                || (authUser?.email && authUser.email.endsWith('@halalway.com')
+                  ? authUser.email.split('@')[0]
+                  : authUser?.email)
+                || 'Admin')?.toUpperCase()
+            }
+          </Text>
+          <Text style={styles.userEmail}>{authUser?.email || ''}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={async () => {
+            await logout();
+            navigation.navigate('Login-email');
+          }}
+        >
+          <Feather name="log-out" size={23} color="#D11A2A" />
+          <Text style={styles.logoutButtonText}>logout</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Dashboard Cards */}
@@ -81,8 +121,8 @@ export default function AdminScreen() {
           { label: 'Blog quantity', value: counts.blogs, screen: 'BlogQuantityScreen' },
           { label: 'Promotion quantity', value: counts.promotions, screen: 'PromotionQuantityScreen' },
         ].map((item, index) => (
-          <TouchableOpacity 
-            key={index} 
+          <TouchableOpacity
+            key={index}
             style={styles.card}
             onPress={() => handleCardPress(item.screen)}
           >
@@ -132,7 +172,10 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 22, color: 'white', fontWeight: 'bold' },
   logoYellow: { color: '#FDCB02' },
 
-  greeting: {
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: 'white',
     paddingHorizontal: 20,
     paddingVertical: 15,
@@ -184,5 +227,20 @@ const styles = StyleSheet.create({
     color: '#FDCB02',
     fontSize: 12,
     marginTop: 3,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    //backgroundColor: '#D11A2A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 10,
+    alignSelf: 'center',
+  },
+  logoutButtonText: {
+    color: '#D11A2A',
+    fontSize: 14,
+    marginLeft: 6,
   },
 });

@@ -41,53 +41,66 @@ const UploadSlipScreen = ({ route }) => {
   };
 
   const uploadToBackend = async () => {
+    if (!imageUri) {
+      Alert.alert('Error', 'Please select an image');
+      setUploading(false);
+      return;
+    }
     try {
     setUploading(true);
-    console.log('Uploading image:', imageUri);
+    console.log('[LOG] Starting uploadToBackend');
+    console.log('[LOG] imageUri:', imageUri);
     // ตรวจสอบ QR จากสลิปก่อน
     const isValidQR = await checkSlipWithVision(imageUri);
+    console.log('[LOG] isValidQR:', isValidQR);
     const status = isValidQR ? 'approved' : 'rejected';
-    console.log('Status:', status);
+    console.log('[LOG] Status:', status);
     const userId = FIREBASE_AUTH.currentUser.uid;
+    console.log('[LOG] userId:', userId);
     const formData = new FormData();
+    console.log('[LOG] Appending file to formData:', imageUri);
     formData.append("file", {
       uri: imageUri,
       name: "photo.jpg",
       type: "image/jpeg",
     });
     formData.append("userId", userId); // ✅ เพิ่ม userId
-
-    // const response = await fetch("http://192.168.1.121:8000/upload-to-firebase", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //   },
-    //   body: formData,
-    // });
-    const response = await fetch("http://192.168.1.121:8000/upload-to-firebase", {
+    console.log('[LOG] formData ready, sending fetch request...');
+    const response = await fetch("http://192.168.56.1:8083/upload-to-firebase", {
       method: "POST",
       body: formData, // ✅ เท่านี้พอ
     });
-
-    const result = await response.json();
+    console.log('[LOG] Fetch response received');
+    const text = await response.text();
+    console.log('[LOG] Raw backend response:', text);
+    let result;
+    try {
+      result = JSON.parse(text);
+      console.log('[LOG] Parsed backend JSON:', result);
+    } catch (e) {
+      console.error('[LOG] JSON parse error:', e, text);
+      Alert.alert('Upload Error', 'Server did not return valid JSON. See logs for details.');
+      setUploading(false);
+      return;
+    }
     console.log("✅ Upload complete:", result);
   // บันทึกลง Firestore
+    console.log('[LOG] Updating Firestore with slipUrl:', imageUri, 'status:', status);
     await updateDoc(doc(FIREBASE_DB, 'CampaignSubscriptions', campaignId), {
       slipUrl: imageUri,
       status: status,
       verifiedAt: new Date(),
     });
-
+    console.log('[LOG] Firestore updated successfully');
     Alert.alert(
       status === 'approved' ? '✅ Approved' : '❌ Rejected',
       status === 'approved'
         ? 'Your slip has been verified successfully.'
         : 'The slip was invalid. Please try again.'
     );
-
       navigation.navigate('EntrepreneurHome');
     } catch (error) {
-      console.error("❌ Upload error:", error);
+      console.error('[LOG] ❌ Upload error:', error);
       Alert.alert("Error", "Upload failed. Try again.");
     }finally {
       setUploading(false);
