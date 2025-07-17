@@ -100,7 +100,7 @@ export default function PromotionQuantityScreen() {
 
             return (
               <View style={styles.card}>
-                <Text style={styles.title}>ชื่อโปรโมชั่น: {item.name || 'N/A'}</Text>
+                <Text style={styles.title}>ชื่อโปรโมชั่น: {item.title || 'N/A'}</Text>
                 <Text style={styles.description}>รายละเอียด: {item.description || 'N/A'}</Text>
                 <Text style={styles.discount}>ส่วนลด: {item.discount ? `${item.discount}%` : 'N/A'}</Text>
                 <Text style={styles.validUntil}>หมดอายุ: {formattedValidUntil}</Text>
@@ -128,7 +128,7 @@ export default function PromotionQuantityScreen() {
 
       {/* Bottom Tab */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('AdminScreen')}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => navigation.navigate('Admin')}>
           <Ionicons name="home-outline" size={24} color="#FFD700" />
           <Text style={styles.tabTextActive}>Home</Text>
         </TouchableOpacity>

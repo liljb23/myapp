@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,57 +10,88 @@ import {
   Modal,
   Platform,
   TouchableWithoutFeedback,
+  FlatList,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
 import { useNavigation } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons'; // Assuming you still use this for icons
+import { Feather } from '@expo/vector-icons';
 
 export default function AddPromotionScreen() {
   const navigation = useNavigation();
-  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [discount, setDiscount] = useState('');
+  const [image, setImage] = useState('');
+  const [remaining, setRemaining] = useState('');
   const [validUntil, setValidUntil] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || validUntil;
-    setShowDatePicker(Platform.OS === 'ios');
-    setValidUntil(currentDate);
-  };
+  const [services, setServices] = useState([]);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [selectedService, setSelectedService] = useState(null);
+  const [serviceModalVisible, setServiceModalVisible] = useState(false);
 
-  const showMode = () => {
-    setShowDatePicker(true);
-  };
+  const [sendNotification, setSendNotification] = useState(true);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      const snap = await getDocs(collection(FIREBASE_DB, 'Services'));
+      setServices(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchServices();
+  }, []);
+
+  const filteredServices = services.filter(s =>
+    s.name && s.name.toLowerCase().includes(serviceSearch.toLowerCase())
+  );
 
   const handleSubmit = async () => {
-    if (!name || !description || !discount || !validUntil) {
-      Alert.alert('Required Fields', 'Please fill out all fields: Promotion Name, Description, Discount, and Valid Until.');
+    if (!title || !description || !discount || !remaining || !validUntil) {
+      Alert.alert('Required Fields', 'Please fill out all fields.');
       return;
     }
 
     try {
       const promotionData = {
-        name,
+        title,
         description,
-        discount: parseFloat(discount),
-        validUntil: validUntil,
+        discount: Number(discount),
+        image: image || '',
+        remaining: Number(remaining),
+        validUntil,
+        serviceId: selectedService ? selectedService.id : null,
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(FIREBASE_DB, 'promotions'), promotionData);
+      const promotionRef = await addDoc(collection(FIREBASE_DB, 'promotions'), promotionData);
+
+      if (sendNotification) {
+        await addDoc(collection(FIREBASE_DB, 'notifications'), {
+          type: 'promotion',
+          message: `New promotion: ${title} - ${description}`,
+          serviceId: selectedService ? selectedService.id : null,
+          image: image || '',
+          validUntil,
+          promotionDocId: promotionRef.id,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       Alert.alert(
         'Success',
         'Promotion added successfully!',
         [{ text: 'OK', onPress: () => navigation.navigate('PromotionQuantityScreen') }]
       );
-      setName('');
+      setTitle('');
       setDescription('');
       setDiscount('');
+      setImage('');
+      setRemaining('');
       setValidUntil(new Date());
+      setSelectedService(null);
+      setServiceSearch('');
     } catch (error) {
       console.error('Error adding promotion:', error);
       Alert.alert('Error', 'Failed to add promotion. Please try again.');
@@ -71,87 +102,171 @@ export default function AddPromotionScreen() {
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const handleServiceSelect = (service) => {
+    setSelectedService(service);
+    setServiceModalVisible(false);
+    setServiceSearch('');
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerText}>Add Promotion</Text>
       </View>
 
-      <Text style={styles.label}>Promotion Name <Text style={styles.required}>*</Text></Text>
+      <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter promotion name"
-        value={name}
-        onChangeText={setName}
-        placeholderTextColor="#999"
+        placeholder="Promotion title"
+        placeholderTextColor="#555"
+        value={title}
+        onChangeText={setTitle}
       />
 
       <Text style={styles.label}>Description <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="Enter description"
-        multiline
-        numberOfLines={4}
+        placeholder="Promotion description"
+        placeholderTextColor="#555"
         value={description}
         onChangeText={setDescription}
-        placeholderTextColor="#999"
       />
 
       <Text style={styles.label}>Discount (%) <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter discount percentage (e.g., 10)"
+        placeholder="Discount percentage"
+        placeholderTextColor="#555"
         keyboardType="numeric"
         value={discount}
         onChangeText={setDiscount}
-        placeholderTextColor="#999"
+      />
+
+      <Text style={styles.label}>Image URL</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Promotion image URL"
+        placeholderTextColor="#555"
+        value={image}
+        onChangeText={setImage}
+      />
+
+      <Text style={styles.label}>Remaining <Text style={styles.required}>*</Text></Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Remaining quantity"
+        placeholderTextColor="#555"
+        keyboardType="numeric"
+        value={remaining}
+        onChangeText={setRemaining}
       />
 
       <Text style={styles.label}>Valid Until <Text style={styles.required}>*</Text></Text>
-      <TouchableOpacity onPress={showMode} style={styles.input}>
+      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
         <Text style={validUntil ? styles.inputText : styles.placeholderText}>
           {validUntil ? formatDate(validUntil) : 'Select End Date'}
         </Text>
         <Feather name="calendar" size={20} color="#666" />
       </TouchableOpacity>
 
-      {/* Date Picker Modal */}
-      {showDatePicker && Platform.OS === 'android' && (
+      {showDatePicker && (
         <DateTimePicker
           testID="dateTimePicker"
           value={validUntil}
           mode="date"
           display="default"
-          onChange={onDateChange}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) setValidUntil(selectedDate);
+          }}
         />
       )}
-      {showDatePicker && Platform.OS === 'ios' && (
-        <Modal
-          transparent={true}
-          visible={showDatePicker}
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
+
+      <Text style={styles.label}>Service <Text style={styles.required}>*</Text></Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setServiceModalVisible(true)}
+      >
+        <Text style={selectedService ? styles.inputText : styles.placeholderText}>
+          {selectedService
+            ? selectedService.name
+            : 'โปรโมชันรวม (All Services)'}
+        </Text>
+        <Feather name="chevron-down" size={20} color="#666" />
+      </TouchableOpacity>
+
+      {/* Modal เลือก service */}
+      <Modal
+        visible={serviceModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setServiceModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setServiceModalVisible(false)}>
+          <View style={styles.modalOverlay} />
+        </TouchableWithoutFeedback>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Service</Text>
+          <TouchableOpacity
+            style={[
+              styles.serviceItem,
+              !selectedService && styles.serviceItemSelected
+            ]}
+            onPress={() => handleServiceSelect(null)}
+          >
+            <Text style={styles.serviceName}>โปรโมชันรวม (All Services)</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={[styles.input, { marginBottom: 0 }]}
+            placeholder="Search service"
+            value={serviceSearch}
+            onChangeText={setServiceSearch}
+          />
+          <FlatList
+            data={filteredServices}
+            keyExtractor={item => item.id}
+            style={{ maxHeight: 200, width: '100%' }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.serviceItem,
+                  selectedService && selectedService.id === item.id && styles.serviceItemSelected
+                ]}
+                onPress={() => handleServiceSelect(item)}
+              >
+                <Text style={styles.serviceName}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+          <TouchableOpacity style={styles.doneButton} onPress={() => setServiceModalVisible(false)}>
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10 }}>
+        <TouchableOpacity
+          onPress={() => setSendNotification(!sendNotification)}
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 5,
+            borderWidth: 2,
+            borderColor: '#014737',
+            backgroundColor: sendNotification ? '#014737' : '#fff',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: 10,
+          }}
         >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Select Date</Text>
-                  <DateTimePicker
-                    value={validUntil}
-                    mode="date"
-                    display="spinner"
-                    onChange={onDateChange}
-                  />
-                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
-      )}
+          {sendNotification && (
+            <Feather name="check" size={16} color="#fff" />
+          )}
+        </TouchableOpacity>
+        <Text style={{ color: '#222', fontSize: 15 }}>
+          ส่งแจ้งเตือนไปยังผู้ใช้
+        </Text>
+      </View>
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
         <Text style={styles.submitButtonText}>Add Promotion</Text>
@@ -190,12 +305,13 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 8,
     paddingHorizontal: 20,
+    color: '#222',
   },
   required: {
     color: 'red',
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     padding: 15,
     borderRadius: 8,
     marginHorizontal: 20,
@@ -204,19 +320,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   inputText: {
-    color: '#333',
+    color: '#222',
+    fontWeight: '600',
     flex: 1,
   },
   placeholderText: {
-    color: '#999',
+    color: '#555',
+    fontWeight: '500',
     flex: 1,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
     padding: 15,
+    backgroundColor: '#fff',
+    color: '#222',
   },
   submitButton: {
     backgroundColor: '#014737',
@@ -234,16 +356,26 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -160 }, { translateY: -180 }],
+    width: 320,
+    minHeight: 250,
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
     alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
   modalTitle: {
     fontSize: 18,
@@ -265,4 +397,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+  serviceItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  serviceItemSelected: {
+    backgroundColor: '#e0f7fa',
+  },
+  serviceName: {
+    fontSize: 16,
+    color: '#014737',
+  },
+});

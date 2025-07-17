@@ -3,11 +3,13 @@ import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, ActivityIn
 import { Feather } from '@expo/vector-icons';
 import { FIREBASE_DB } from './FirebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
 const Blog = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const toggleFavorite = (id) => {
     setFavorites((prev) =>
@@ -49,7 +51,7 @@ const Blog = ({ navigation }) => {
       </View>
 
       {/* Title */}
-      <Text style={styles.pageTitle}>Blog</Text>
+      <Text style={styles.pageTitle}>{t('blog')}</Text>
 
       {/* Blog List */}
       <ScrollView>
@@ -78,7 +80,7 @@ const Blog = ({ navigation }) => {
                   style={styles.readMoreButton}
                   onPress={() => navigation.navigate('BlogDetail', { blog: item })}
                 >
-                  <Text style={styles.readMoreText}>Read More</Text>
+                  <Text style={styles.readMoreText}>{t('readMore')}</Text>
                 </TouchableOpacity>
 
               </View>

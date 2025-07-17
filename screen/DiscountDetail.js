@@ -16,11 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { doc, runTransaction } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
 const DiscountDetail = ({ route }) => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { discount } = route.params;
 
   const [isUsed, setIsUsed] = useState(false);
@@ -32,7 +34,7 @@ const DiscountDetail = ({ route }) => {
       discount.validUntil.seconds
         ? new Date(discount.validUntil.seconds * 1000)
         : new Date(discount.validUntil);
-    expiryText = `Valid until ${date.toLocaleDateString()}`;
+    expiryText = t('expiresIn', { date: date.toLocaleDateString() });
   }
 
   // DEBUG
@@ -45,16 +47,16 @@ const DiscountDetail = ({ route }) => {
       const promoRef = doc(FIREBASE_DB, 'promotions', discount.id);
       await runTransaction(FIREBASE_DB, async (transaction) => {
         const promoDoc = await transaction.get(promoRef);
-        if (!promoDoc.exists()) throw 'Promotion not found';
+        if (!promoDoc.exists()) throw t('error');
         const current = promoDoc.data().remaining ?? 0;
-        if (current <= 0) throw 'Coupon limit reached';
+        if (current <= 0) throw t('couponLimitReached');
         transaction.update(promoRef, { remaining: current - 1 });
         setRemaining(current - 1);
       });
       setIsUsed(true);
-      Alert.alert('Success', 'บันทึกคูปองสำเร็จ!');
+      Alert.alert(t('success'), t('couponSaved'));
     } catch (e) {
-      Alert.alert('Error', e.toString());
+      Alert.alert(t('error'), e.toString());
     }
   };
 
@@ -85,7 +87,7 @@ const DiscountDetail = ({ route }) => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.restaurantName}>{discount.shopName || discount.name || 'Discount'}</Text>
+          <Text style={styles.restaurantName}>{discount.shopName || discount.name || t('discount')}</Text>
           {discount.shopDistance && discount.shopDistance !== '-' ? (
             <View style={styles.distanceRow}>
               <Feather name="map-pin" size={14} color="#014737" />
@@ -94,9 +96,9 @@ const DiscountDetail = ({ route }) => {
           ) : null}
           <View style={styles.discountInfo}>
             <Text style={styles.discountText}>
-              Discount{' '}
+              {t('discount')}{' '}
               <Text style={styles.discountAmount}>
-                {discount.discount ? `${discount.discount}% OFF` : ''}
+                {discount.discount ? `${discount.discount}% ${t('discount')}` : ''}
               </Text>
             </Text>
             {expiryText ? (
@@ -105,8 +107,7 @@ const DiscountDetail = ({ route }) => {
           </View>
 
           <Text style={styles.description}>
-            {discount.description ||
-              'A discount code can only be used when booking a hotel room.'}
+            {discount.description || t('discountDescription')}
           </Text>
 
           {/* DEBUG SECTION
@@ -135,10 +136,10 @@ const DiscountDetail = ({ route }) => {
             ]}
           >
             {remaining === 0
-              ? 'Coupon Limit Reached'
+              ? t('couponLimitReached')
               : isUsed
-              ? 'Discount Used'
-              : 'Use Discount'}
+              ? t('discountUsed')
+              : t('useDiscount')}
           </Text>
         </TouchableOpacity>
       </View>

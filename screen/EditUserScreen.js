@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { FIREBASE_DB } from './FirebaseConfig';
+import { useTranslation } from 'react-i18next';
 
 export default function EditUserScreen() {
   const navigation = useNavigation();
@@ -24,6 +25,8 @@ export default function EditUserScreen() {
   const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(user.phone || '');
   const [address, setAddress] = useState(user.address || '');
+
+  const { t } = useTranslation();
 
   const handleUpdate = async () => {
     if (!name || !email) {
@@ -63,52 +66,52 @@ export default function EditUserScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit User</Text>
+        <Text style={styles.headerTitle}>{t('editUser')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>{t('name')}</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter name"
+              placeholder={t('placeholderEnterYourName')}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('email')}</Text>
             <TextInput
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Enter email"
+              placeholder={t('placeholderEnterEmail')}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone</Text>
+            <Text style={styles.label}>{t('phone')}</Text>
             <TextInput
               style={styles.input}
               value={phone}
               onChangeText={setPhone}
-              placeholder="Enter phone number"
+              placeholder={t('placeholderEnterPhoneNumber')}
               keyboardType="phone-pad"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address</Text>
+            <Text style={styles.label}>{t('address')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={address}
               onChangeText={setAddress}
-              placeholder="Enter address"
+              placeholder={t('placeholderEnterAddress')}
               multiline
               numberOfLines={3}
             />
@@ -122,7 +125,7 @@ export default function EditUserScreen() {
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.updateButtonText}>Update User</Text>
+              <Text style={styles.updateButtonText}>{t('updateUser')}</Text>
             )}
           </TouchableOpacity>
         </View>

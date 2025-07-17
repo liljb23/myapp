@@ -13,11 +13,13 @@ import {
   Alert,
 } from 'react-native';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
+import { useTranslation } from 'react-i18next';
 
 export default function GeneralUserQuantityScreen() {
   const navigation = useNavigation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   const fetchUsers = async () => {
     try {
@@ -48,21 +50,21 @@ export default function GeneralUserQuantityScreen() {
 
   const handleDelete = (userId) => {
     Alert.alert(
-      'Delete Entrepreneur',
-      'Are you sure you want to delete this entrepreneur?',
+      t('deleteEntrepreneur'),
+      t('areYouSureDeleteEntrepreneur'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteDoc(doc(FIREBASE_DB, 'user', userId));
               setUsers(users.filter(u => u.id !== userId));
-              Alert.alert('Entrepreneur deleted');
+              Alert.alert(t('entrepreneurDeleted'));
             } catch (error) {
               console.error('Error deleting entrepreneur:', error);
-              Alert.alert('Failed to delete entrepreneur');
+              Alert.alert(t('failedToDeleteEntrepreneur'));
             }
           },
         },
@@ -152,8 +154,8 @@ export default function GeneralUserQuantityScreen() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>General Users</Text>
-          <Text style={styles.quantityText}>Total: {users.length}</Text>
+          <Text style={styles.headerTitle}>{t('generalUsers')}</Text>
+          <Text style={styles.quantityText}>{t('total')}: {users.length}</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
@@ -164,7 +166,7 @@ export default function GeneralUserQuantityScreen() {
       ) : users.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={50} color="#999" />
-          <Text style={styles.emptyText}>No general users found</Text>
+          <Text style={styles.emptyText}>{t('noGeneralUsersFound')}</Text>
         </View>
       ) : (
         <FlatList

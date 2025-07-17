@@ -15,6 +15,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { signOut } from 'firebase/auth';
+import { useTranslation } from 'react-i18next';
 
 const EntrepreneurHome = () => {
   const navigation = useNavigation();
@@ -22,6 +23,7 @@ const EntrepreneurHome = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [user, setUser] = useState(FIREBASE_AUTH.currentUser);
+  const { t } = useTranslation();
 
   useFocusEffect(
     useCallback(() => {
@@ -143,7 +145,7 @@ const EntrepreneurHome = () => {
       {/* User Info Row */}
       <View style={styles.userRow}>
         <View>
-          <Text style={styles.helloText}>Hello, {user?.displayName || user?.email?.split('@')[0] || 'User'}</Text>
+          <Text style={styles.helloText}>{t('helloUser', { name: user?.displayName || user?.email?.split('@')[0] || t('user') })}</Text>
           <Text style={styles.emailText}>{user?.email}</Text>
         </View>
         {/* <Feather name="bell" size={22} color="#014737" /> */}
@@ -155,11 +157,11 @@ const EntrepreneurHome = () => {
       {/* Add Service Button */}
       <TouchableOpacity style={styles.addServiceBtn} onPress={handleAddService}>
         <Feather name="plus" size={36} color="#7A8686" />
-        <Text style={styles.addServiceText}>Add Service</Text>
+        <Text style={styles.addServiceText}>{t('addService')}</Text>
       </TouchableOpacity>
 
       {/* Section Title */}
-      <Text style={styles.sectionTitle}>Your Service</Text>
+      <Text style={styles.sectionTitle}>{t('yourService')}</Text>
 
       {/* Content */}
       {services.length === 0 ? (

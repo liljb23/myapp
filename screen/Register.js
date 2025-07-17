@@ -9,13 +9,18 @@ import {
   KeyboardAvoidingView,
   SafeAreaView,
   Modal,
-  FlatList
+  FlatList,
+  Image
 } from 'react-native';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useTranslation } from 'react-i18next';
+import { Feather } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 
 const Register = ({ navigation }) => {
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -26,9 +31,15 @@ const Register = ({ navigation }) => {
   const db = FIREBASE_DB;
 
   const roles = [
-    { id: '1', title: 'General User' },
-    { id: '2', title: 'Entrepreneur' },
-    { id: '3', title: 'Admin' }
+    { id: '1', title: t('generalUser') },
+    { id: '2', title: t('entrepreneur') },
+    // { id: '3', title: t('admin') }
+  ];
+
+  const languages = [
+    { code: 'th', flag: require('../assets/thai.png') },
+    { code: 'en', flag: require('../assets/usa.png') },
+    { code: 'ar', flag: require('../assets/united-arab-emirates.png') },
   ];
 
   const validateEmail = (email) => {
@@ -87,6 +98,11 @@ const Register = ({ navigation }) => {
     }
   };
 
+  const handleLanguageChange = async (code) => {
+    await i18n.changeLanguage(code);
+    await SecureStore.setItemAsync('appLanguage', code);
+  };
+
   const RoleDropdown = () => (
     <Modal
       visible={isDropdownVisible}
@@ -124,9 +140,15 @@ const Register = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Feather name="arrow-left" size={32} color="#fff" />
+      </TouchableOpacity>
       <View style={styles.headerSection}>
-        <Text style={styles.headerText}>Create account</Text>
-        <Text style={styles.headerSubtitle}>Set up your user name and password.</Text>
+        <Text style={styles.headerText}>{t('createAccount')}</Text>
+        <Text style={styles.headerSubtitle}>{t('setUpUserNameAndPassword')}</Text>
       </View>
 
       {/* <View style={styles.avatarSection}>
@@ -140,11 +162,11 @@ const Register = ({ navigation }) => {
 
       <KeyboardAvoidingView behavior="padding" style={styles.formSection}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Name<Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>{t('name')}<Text style={styles.required}>*</Text></Text>
           <TextInput 
             value={name}
             style={styles.input}
-            placeholder="username"
+            placeholder={t('username')}
             placeholderTextColor="#666666"
             autoCapitalize="none"
             onChangeText={(text) => setName(text)}
@@ -152,11 +174,11 @@ const Register = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email<Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>{t('email')}<Text style={styles.required}>*</Text></Text>
           <TextInput 
             value={email}
             style={styles.input}
-            placeholder="ceate@gmail.com"
+            placeholder={t('emailPlaceholder')}
             placeholderTextColor="#666666"
             autoCapitalize="none"
             onChangeText={(text) => setEmail(text)}
@@ -164,11 +186,11 @@ const Register = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Password<Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>{t('password')}<Text style={styles.required}>*</Text></Text>
           <TextInput 
             value={password}
             style={styles.input}
-            placeholder="••••••••"
+            placeholder={t('passwordPlaceholder')}
             placeholderTextColor="#666666"
             secureTextEntry
             onChangeText={(text) => setPassword(text)}
@@ -176,11 +198,11 @@ const Register = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone Number<Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>{t('phoneNumber')}<Text style={styles.required}>*</Text></Text>
           <TextInput 
             value={phone}
             style={styles.input}
-            placeholder="Enter phone number"
+            placeholder={t('phonePlaceholder')}
             placeholderTextColor="#666666"
             keyboardType="phone-pad"
             onChangeText={(text) => setPhone(text)}
@@ -188,7 +210,7 @@ const Register = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Role<Text style={styles.required}>*</Text></Text>
+          <Text style={styles.label}>{t('role')}<Text style={styles.required}>*</Text></Text>
           <TouchableOpacity 
             style={styles.roleSelector}
             onPress={() => setIsDropdownVisible(true)}
@@ -206,10 +228,28 @@ const Register = ({ navigation }) => {
           <ActivityIndicator size="large" color="#014737" />
         ) : (
           <TouchableOpacity style={styles.continueButton} onPress={handleRegister}>
-            <Text style={styles.continueButtonText}>Continue</Text>
+            <Text style={styles.continueButtonText}>{t('continue')}</Text>
           </TouchableOpacity>
         )}
       </KeyboardAvoidingView>
+
+      <View style={styles.languageSection}>
+        <Text style={styles.languageLabel}>{t('language')}</Text>
+        <View style={styles.flagRow}>
+          {languages.map(lang => (
+            <TouchableOpacity
+              key={lang.code}
+              onPress={() => handleLanguageChange(lang.code)}
+              style={[
+                styles.flagIcon,
+                i18n.language === lang.code && styles.selectedFlagIcon
+              ]}
+            >
+              <Image source={lang.flag} style={styles.flagImage} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* <View style={styles.footerSection}>
         <Image 
@@ -375,7 +415,50 @@ const styles = StyleSheet.create({
   brandLogo: {
     height: 40,
     resizeMode: 'contain',
-  }
+  },
+  backButton: {
+    position: 'absolute',
+    top: 30,
+    left: 20,
+    zIndex: 10,
+    borderRadius: 20,
+    padding: 4,
+    elevation: 2,
+  },
+  languageSection: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  languageLabel: {
+    color: 'gray',
+    fontSize: 16,
+    marginBottom: 26,
+  },
+  flagRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  flagIcon: {
+    width: 38,
+    height: 38,
+    marginHorizontal: 8,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: '#eee',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedFlagIcon: {
+    borderColor: '#014737',
+    borderWidth: 3,
+  },
+  flagImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
 });
 
 export default Register;

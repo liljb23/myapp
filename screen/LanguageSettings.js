@@ -11,6 +11,7 @@ import {
 // import * as SecureStore from 'expo-secure-store'; // ✅ นำเข้า SecureStore
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import i18nInstance from './i18n';
 
 const LanguageSettings = ({ navigation }) => {
   const { t, i18n } = useTranslation();
@@ -50,7 +51,7 @@ const LanguageSettings = ({ navigation }) => {
   const handleLanguageChange = async (languageCode) => {
     try {
       // await SecureStore.setItemAsync('appLanguage', languageCode); // ✅ บันทึกค่าภาษา
-      await i18n.changeLanguage(languageCode); // ✅ เปลี่ยนภาษาใน i18next
+      await i18nInstance.changeLanguage(languageCode); // Use the imported i18n instance
       setSelectedLanguage(languageCode); // ✅ อัพเดท UI
       navigation.goBack(); // ✅ กลับไปหน้าเดิม
     } catch (error) {
@@ -67,7 +68,7 @@ const LanguageSettings = ({ navigation }) => {
         >
           <Feather name="chevron-left" size={33} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('changeLanguage')}</Text>
+        <Text style={styles.headerTitle}>{t('Change Language')}</Text>
       </View>
 
       <View style={styles.languageList}>

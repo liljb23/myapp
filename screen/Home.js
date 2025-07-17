@@ -9,6 +9,7 @@ import { useAuth } from './AuthContext';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { collection, getDocs, query, where, doc, setDoc, deleteDoc, increment, serverTimestamp } from 'firebase/firestore';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 
 export const updateCampaignReport = async ({ campaignId, serviceId, entrepreneurId, type }) => {
   try {
@@ -52,6 +53,7 @@ const Home = () => {
   const [promotionsWithService, setPromotionsWithService] = useState([]);
   const { user: authUser } = useAuth();
   const [favoriteIds, setFavoriteIds] = useState([]);
+  const { t } = useTranslation();
 
   function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
     function deg2rad(deg) {
@@ -311,7 +313,7 @@ const Home = () => {
 
         <View style={styles.logoContainer}>
           <Image
-            //source={require('../png/logo-removebg.png')}
+            source={require('../assets/logo-removebg.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -324,7 +326,7 @@ const Home = () => {
              onPress={() => navigation.navigate('Search')}
            >
              <Feather name="search" size={20} color="#666" />
-             <Text style={styles.searchPlaceholderText}>Search...</Text>
+             <Text style={styles.searchPlaceholderText}>{t('searchPlaceholder')}</Text>
            </TouchableOpacity>
         </View>
       </View>
@@ -335,7 +337,7 @@ const Home = () => {
           // 🔹 ถ้าผู้ใช้ล็อกอินอยู่
           <View style={styles.userSection}>
             <View>
-            <Text style={{ fontSize: 18 }}>Hello, {user.username || user.email}</Text>
+            <Text style={{ fontSize: 18 }}>{t('helloUser', { name: user.username || user.email })}</Text>
             <Text style={styles.userEmail}>{user.email}</Text>
             </View>
             <View style={styles.userActions}>
@@ -355,10 +357,10 @@ const Home = () => {
           // 🔹 ถ้ายังไม่ล็อกอิน แสดงปุ่มสมัครและล็อกอิน
           <View style={styles.authButtons}>
             <TouchableOpacity style={[styles.authButton, styles.loginButton]} onPress={() => navigation.navigate('Login-email')}>
-              <Text style={styles.authButtonText}>Login</Text>
+              <Text style={styles.authButtonText}>{t('login')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.authButton, styles.registerButton]} onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerButtonText}>Register</Text>
+              <Text style={styles.registerButtonText}>{t('register')}</Text>
             </TouchableOpacity>
           </View>
           
@@ -384,9 +386,9 @@ const Home = () => {
         {/* Recommends Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommends</Text>
+            <Text style={styles.sectionTitle}>{t('recommends')}</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           {/* <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -437,22 +439,22 @@ const Home = () => {
 
         {/* Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionTitle}>{t('categories')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <CategoryIcon title="Restaurant" emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
-            <CategoryIcon title="Beauty & Salon" emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
-            <CategoryIcon title="Resort & Hotel" emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
-            <CategoryIcon title="Tourist Attraction" emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
-            <CategoryIcon title="Mosque" emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
+            <CategoryIcon title={t('restaurant')} emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
+            <CategoryIcon title={t('beautyAndSalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
+            <CategoryIcon title={t('resortAndHotel')} emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
+            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
+            <CategoryIcon title={t('mosque')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
           </ScrollView>
         </View>
 
         {/* Blog Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Blog</Text>
+            <Text style={styles.sectionTitle}>{t('blog')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('BlogTab')}>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -473,7 +475,7 @@ const Home = () => {
 
         {/* Mosque Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mosque near you</Text>
+          <Text style={styles.sectionTitle}>{t('mosqueNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {mosques.map(mosque => (
               <LocationCard
@@ -506,7 +508,7 @@ const Home = () => {
 
         {/* Tourist Attractions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tourist attractions</Text>
+          <Text style={styles.sectionTitle}>{t('touristAttractions')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {touristAttractions.map(attraction => (
               <LocationCard
@@ -542,7 +544,7 @@ const Home = () => {
 
         {/* Places of Prayer */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Places of prayer near you</Text>
+          <Text style={styles.sectionTitle}>{t('prayerPlacesNearYou')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {prayerPlaces.map(place => (
               <LocationCard
@@ -578,9 +580,9 @@ const Home = () => {
         {/* Discounts and Benefits */}
         <View style={[styles.section, styles.lastSection]}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Discounts and benefits</Text>
+            <Text style={styles.sectionTitle}>{t('discountsAndBenefits')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('DiscountTab')}>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>{t('seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -596,7 +598,7 @@ const Home = () => {
                 description={promo.description}
                 expiryDate={
                   promo.validUntil
-                    ? `Valid until ${new Date(promo.validUntil.seconds * 1000).toLocaleDateString()}`
+                    ? `${t('expiresIn', { date: new Date(promo.validUntil.seconds * 1000).toLocaleDateString() })}`
                     : ''
                 }
                 shopName={promo.shopName}

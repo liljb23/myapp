@@ -147,6 +147,7 @@ const GuestStackNavigator = () => (
     <GuestStack.Screen name="Login-email" component={LoginEmail} options={{ headerShown: false }} />
     <GuestStack.Screen name="Login-phone" component={LoginPhone} options={{ headerShown: false }} />
     <GuestStack.Screen name="Menu" component={Menu} options={{ headerShown: false, unmountOnBlur: true }} />
+    <GuestStack.Screen name="LanguageSettings" component={LanguageSettings} options={{ headerShown: false, unmountOnBlur: true }} />
   </GuestStack.Navigator>
 );
 

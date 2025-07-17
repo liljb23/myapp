@@ -9,8 +9,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { FIREBASE_DB } from '../screen/FirebaseConfig';
+
+function timeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffH < 1) return `${Math.floor(diffMs / (1000 * 60))} min ago`;
+  return `${diffH} hours ago`;
+}
 
 export default function NotiAdmin({ navigation }) {
   const [transactions, setTransactions] = useState([]);
@@ -21,12 +29,27 @@ export default function NotiAdmin({ navigation }) {
       try {
         const q = query(
           collection(FIREBASE_DB, 'CampaignSubscriptions'),
-          orderBy('verifiedAt', 'desc')
+          orderBy('createdAt', 'desc')
         );
         const snap = await getDocs(q);
-        const list = snap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
+        const list = await Promise.all(snap.docs.map(async docSnap => {
+          const data = docSnap.data();
+          let serviceName = '';
+          let serviceImage = null;
+          if (data.serviceId) {
+            const serviceDoc = await getDoc(doc(FIREBASE_DB, 'Services', data.serviceId));
+            if (serviceDoc.exists()) {
+              const serviceData = serviceDoc.data();
+              serviceName = serviceData.name || '';
+              serviceImage = serviceData.image || null;
+            }
+          }
+          return {
+            id: docSnap.id,
+            ...data,
+            serviceName,
+            serviceImage,
+          };
         }));
         setTransactions(list);
       } catch (e) {
@@ -38,33 +61,55 @@ export default function NotiAdmin({ navigation }) {
     fetchTransactions();
   }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.left}>
-        {item.slipUrl ? (
-          <Image source={{ uri: item.slipUrl }} style={styles.image} />
-        ) : (
-          <Ionicons name="receipt-outline" size={40} color="#014737" />
-        )}
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.amount}>
-          {item.price ? `฿${item.price}` : 'No price'}
-        </Text>
-        <Text style={styles.label}>
-          EntrepreneurId: <Text style={styles.value}>{item.EntrepreneurId || '-'}</Text>
-        </Text>
-      </View>
+  const renderItem = ({ item }) => {
+    // เวลา
+    let timeText = '';
+    if (item.createdAt && item.createdAt.seconds) {
+      const date = new Date(item.createdAt.seconds * 1000);
+      timeText = timeAgo(date);
+    }
+    // สถานะ
+    let statusColor = '#888';
+    let statusLabel = '';
+    if (item.status === 'waiting_payment') {
+      statusColor = '#FFD700';
+      statusLabel = 'Waiting Payment';
+    } else if (item.status === 'approved') {
+      statusColor = '#2ecc40';
+      statusLabel = 'Approved';
+    } else {
+      statusLabel = item.status || '';
+    }
+
+    // รูปจาก Services
+    const serviceImage = item.serviceImage;
+
+    return (
       <TouchableOpacity
-        style={styles.viewBtn}
-        onPress={() => {
-          navigation.navigate('SlipDetail', { slip: item });
-        }}
+        style={styles.card}
+        onPress={() => navigation.navigate('SlipDetail', { slip: item })}
       >
-        <Ionicons name="eye-outline" size={24} color="#014737" />
+        <Image source={typeof serviceImage === 'string' ? { uri: serviceImage } : serviceImage} style={styles.moneyIcon} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.timeText}>{timeText}</Text>
+          <Text style={styles.boldText}>
+            {item.serviceName
+              ? `Money transferred for "${item.serviceName}"`
+              : 'There is money transferred into the account.'}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+            <Text style={styles.amountText}>
+              Total amount {item.price ? `${item.price} ฿` : '-'}
+            </Text>
+            <Text style={[styles.statusText, { color: statusColor, marginLeft: 10 }]}>
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#014737" />
       </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -148,21 +193,31 @@ const styles = StyleSheet.create({
     elevation: 5,
     alignItems: 'center',
   },
-  left: { marginRight: 15 },
-  image: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#eee' },
-  info: { flex: 1 },
-  amount: { fontWeight: 'bold', fontSize: 16, color: '#014737' },
-  label: {
+  moneyIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  timeText: {
+    color: '#888',
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  boldText: {
     fontWeight: 'bold',
     color: '#014737',
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 15,
+    marginBottom: 2,
   },
-  value: {
-    fontWeight: 'normal',
-    color: '#333',
+  amountText: {
+    color: '#014737',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
-  viewBtn: { padding: 8 },
+  statusText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#002B28',

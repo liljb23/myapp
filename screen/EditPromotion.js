@@ -10,11 +10,12 @@ import {
   Modal,
   Platform,
   TouchableWithoutFeedback,
+  FlatList,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDocs, collection } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
 
 const EditPromotion = () => {
@@ -22,38 +23,45 @@ const EditPromotion = () => {
   const route = useRoute();
   const { promoId, existingData } = route.params;
 
-  const [name, setName] = useState(existingData?.name || '');
+  const [title, setTitle] = useState(existingData?.title || '');
   const [description, setDescription] = useState(existingData?.description || '');
   const [discount, setDiscount] = useState(String(existingData?.discount || ''));
-  const [startDate, setStartDate] = useState(existingData?.startDate?.seconds ? new Date(existingData.startDate.seconds * 1000) : new Date());
-  const [endDate, setEndDate] = useState(existingData?.endDate?.seconds ? new Date(existingData.endDate.seconds * 1000) : new Date());
-
+  const [image, setImage] = useState(existingData?.image || '');
+  const [remaining, setRemaining] = useState(String(existingData?.remaining || ''));
+  const [validUntil, setValidUntil] = useState(existingData?.validUntil?.seconds ? new Date(existingData.validUntil.seconds * 1000) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDateType, setSelectedDateType] = useState('');
 
-  const onDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || new Date();
-    setShowDatePicker(Platform.OS === 'ios');
+  const [services, setServices] = useState([]);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const [selectedService, setSelectedService] = useState(existingData?.serviceId ? { id: existingData.serviceId, name: existingData.serviceName || '' } : null);
+  const [serviceModalVisible, setServiceModalVisible] = useState(false);
 
-    if (selectedDateType === 'startDate') {
-      setStartDate(currentDate);
-    } else if (selectedDateType === 'endDate') {
-      setEndDate(currentDate);
-    }
-  };
+  useEffect(() => {
+    const fetchServices = async () => {
+      const snap = await getDocs(collection(FIREBASE_DB, 'Services'));
+      setServices(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchServices();
+  }, []);
 
-  const showMode = (type) => {
-    setSelectedDateType(type);
-    setShowDatePicker(true);
-  };
+  const filteredServices = services.filter(s =>
+    s.name && s.name.toLowerCase().includes(serviceSearch.toLowerCase())
+  );
 
   const formatDate = (date) => {
-    if (!(date instanceof Date)) return 'N/A';
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return date instanceof Date
+      ? date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '';
+  };
+
+  const handleServiceSelect = (service) => {
+    setSelectedService(service);
+    setServiceModalVisible(false);
+    setServiceSearch('');
   };
 
   const handleUpdate = async () => {
-    if (!name || !description || !discount || !startDate || !endDate) {
+    if (!title || !description || !discount || !remaining || !validUntil) {
       Alert.alert("Error", "Please fill all required fields.");
       return;
     }
@@ -61,11 +69,13 @@ const EditPromotion = () => {
     try {
       const promotionRef = doc(FIREBASE_DB, 'promotions', promoId);
       await updateDoc(promotionRef, {
-        name,
+        title,
         description,
-        discount: parseFloat(discount),
-        startDate,
-        endDate,
+        discount: Number(discount),
+        image: image || '',
+        remaining: Number(remaining),
+        validUntil,
+        serviceId: selectedService ? selectedService.id : null,
       });
       Alert.alert("Success", "Promotion updated successfully.");
       navigation.goBack();
@@ -77,30 +87,29 @@ const EditPromotion = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="white" />
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Edit Promotion</Text>
-        </View>
-        <View style={{ width: 40 }} />
+        <Text style={styles.header}>Edit Promotion</Text>
+        <View style={{ width: 24 }} />
       </View>
 
-      <Text style={styles.label}>Promotion Name <Text style={styles.required}>*</Text></Text>
+      <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={styles.input}
-        placeholder="Promotion Name"
-        value={name}
-        onChangeText={setName}
+        placeholder="Promotion title"
+        placeholderTextColor="#555"
+        value={title}
+        onChangeText={setTitle}
       />
 
       <Text style={styles.label}>Description <Text style={styles.required}>*</Text></Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="Description"
+        placeholder="Promotion description"
+        placeholderTextColor="#555"
         value={description}
-        multiline
         onChangeText={setDescription}
       />
 
@@ -108,58 +117,112 @@ const EditPromotion = () => {
       <TextInput
         style={styles.input}
         placeholder="Discount percentage"
-        value={discount}
+        placeholderTextColor="#555"
         keyboardType="numeric"
+        value={discount}
         onChangeText={setDiscount}
       />
 
-      <Text style={styles.label}>Start Date <Text style={styles.required}>*</Text></Text>
-      <TouchableOpacity onPress={() => showMode('startDate')} style={styles.inputField}>
-        <Text>{formatDate(startDate)}</Text>
-        <Ionicons name="calendar" size={20} color="#666" />
+      <Text style={styles.label}>Image URL</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Promotion image URL"
+        placeholderTextColor="#555"
+        value={image}
+        onChangeText={setImage}
+      />
+
+      <Text style={styles.label}>Remaining <Text style={styles.required}>*</Text></Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Remaining quantity"
+        placeholderTextColor="#555"
+        keyboardType="numeric"
+        value={remaining}
+        onChangeText={setRemaining}
+      />
+
+      <Text style={styles.label}>Valid Until <Text style={styles.required}>*</Text></Text>
+      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+        <Text style={validUntil ? styles.inputText : styles.placeholderText}>
+          {validUntil ? formatDate(validUntil) : 'Select End Date'}
+        </Text>
+        <Feather name="calendar" size={20} color="#666" />
       </TouchableOpacity>
 
-      <Text style={styles.label}>End Date <Text style={styles.required}>*</Text></Text>
-      <TouchableOpacity onPress={() => showMode('endDate')} style={styles.inputField}>
-        <Text>{formatDate(endDate)}</Text>
-        <Ionicons name="calendar" size={20} color="#666" />
-      </TouchableOpacity>
-
-      {showDatePicker && Platform.OS === 'android' && (
+      {showDatePicker && (
         <DateTimePicker
-          value={selectedDateType === 'startDate' ? startDate : endDate}
+          value={validUntil}
           mode="date"
           display="default"
-          onChange={onDateChange}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) setValidUntil(selectedDate);
+          }}
         />
       )}
-      {showDatePicker && Platform.OS === 'ios' && (
-        <Modal
-          transparent={true}
-          visible={showDatePicker}
-          animationType="slide"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Select Date</Text>
-                  <DateTimePicker
-                    value={selectedDateType === 'startDate' ? startDate : endDate}
-                    mode="date"
-                    display="spinner"
-                    onChange={onDateChange}
-                  />
-                  <TouchableOpacity style={styles.doneButton} onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
-      )}
+
+      <Text style={styles.label}>Service <Text style={styles.required}>*</Text></Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setServiceModalVisible(true)}
+      >
+        <Text style={selectedService ? styles.inputText : styles.placeholderText}>
+          {selectedService
+            ? selectedService.name
+            : 'โปรโมชันรวม (All Services)'}
+        </Text>
+        <Feather name="chevron-down" size={20} color="#666" />
+      </TouchableOpacity>
+
+      {/* Modal เลือก service */}
+      <Modal
+        visible={serviceModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setServiceModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setServiceModalVisible(false)}>
+          <View style={styles.modalOverlay} />
+        </TouchableWithoutFeedback>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Service</Text>
+          <TouchableOpacity
+            style={[
+              styles.serviceItem,
+              !selectedService && styles.serviceItemSelected
+            ]}
+            onPress={() => handleServiceSelect(null)}
+          >
+            <Text style={styles.serviceName}>โปรโมชันรวม (All Services)</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={[styles.input, { marginBottom: 0 }]}
+            placeholder="Search service"
+            value={serviceSearch}
+            onChangeText={setServiceSearch}
+          />
+          <FlatList
+            data={filteredServices}
+            keyExtractor={item => item.id}
+            style={{ maxHeight: 200, width: '100%' }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.serviceItem,
+                  selectedService && selectedService.id === item.id && styles.serviceItemSelected
+                ]}
+                onPress={() => handleServiceSelect(item)}
+              >
+                <Text style={styles.serviceName}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+          <TouchableOpacity style={styles.doneButton} onPress={() => setServiceModalVisible(false)}>
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       <TouchableOpacity style={styles.updateButton} onPress={handleUpdate}>
         <Ionicons name="save-outline" size={24} color="#fff" />
@@ -175,32 +238,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1
   },
-  header: {
-    height: 100,
-    backgroundColor: '#002B28',
-    paddingHorizontal: 20,
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    justifyContent: 'space-between',
+    backgroundColor: '#002B28',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
   },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: 'white',
+  header: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
   },
   label: {
     fontSize: 16,
@@ -212,27 +263,33 @@ const styles = StyleSheet.create({
     color: 'red',
   },
   input: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
     marginBottom: 15,
     fontSize: 16,
-  },
-  inputField: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    marginBottom: 15,
-    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  inputText: {
+    color: '#222',
+    fontWeight: '600',
+    flex: 1,
+  },
+  placeholderText: {
+    color: '#555',
+    fontWeight: '500',
+    flex: 1,
+  },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+    backgroundColor: '#fff',
+    color: '#222',
   },
   updateButton: {
     flexDirection: 'row',
@@ -256,11 +313,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
+    width: 320,
+    minHeight: 250,
+    backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
     alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -160 }, { translateY: -180 }],
   },
   modalTitle: {
     fontSize: 18,
@@ -281,6 +348,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  serviceItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  serviceItemSelected: {
+    backgroundColor: '#e0f7fa',
+  },
+  serviceName: {
+    fontSize: 16,
+    color: '#014737',
   },
 });
 

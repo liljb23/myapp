@@ -13,12 +13,16 @@ import {
 import { FIREBASE_AUTH } from './FirebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { Feather } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 
 const DARK_GREEN = '#014737';
 const YELLOW = '#FFD600';
 const LIGHT_GRAY = '#f5f5f5';
 
-const LoginEmail = () => {
+const LoginEmail = (props) => {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,11 +46,28 @@ const LoginEmail = () => {
     }
   };
 
+  const languages = [
+    { code: 'th', flag: require('../assets/thai.png') },
+    { code: 'en', flag: require('../assets/usa.png') },
+    { code: 'ar', flag: require('../assets/united-arab-emirates.png') },
+  ];
+
+  const handleLanguageChange = async (code) => {
+    await i18n.changeLanguage(code);
+    await SecureStore.setItemAsync('appLanguage', code);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Feather name="arrow-left" size={32} color="#ffff" />
+      </TouchableOpacity>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Login</Text>
-        <Text style={styles.headerSubtitle}>Login to make your life easier.</Text>
+        <Text style={styles.headerTitle}>{t('login')}</Text>
+        <Text style={styles.headerSubtitle}>{t('loginSubtitle')}</Text>
       </View>
       <View style={styles.content}>
         <View style={styles.profileIconContainer}>
@@ -60,9 +81,9 @@ const LoginEmail = () => {
         </View>
         <View style={styles.inputSection}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>{t('email')}</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login-phone')}>
-              <Text style={styles.switchLoginText}>Or Login With Phone</Text>
+              <Text style={styles.switchLoginText}>{t('orLoginWithPhone')}</Text>
             </TouchableOpacity>
           </View>
           <TextInput
@@ -80,7 +101,7 @@ const LoginEmail = () => {
           <View style={styles.passwordInputRow}>
             <TextInput
               style={[styles.input, {flex: 1, marginBottom: 0}]}
-              placeholder="Password"
+              placeholder={t('password')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -96,7 +117,7 @@ const LoginEmail = () => {
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.forgotPasswordButton}>
-            <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity 
@@ -107,21 +128,30 @@ const LoginEmail = () => {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.loginButtonText}>Login</Text>
+            <Text style={styles.loginButtonText}>{t('login')}</Text>
           )}
         </TouchableOpacity>
         <View style={styles.signupRow}>
-          <Text style={styles.signupText}>Don’t have an account? </Text>
+          <Text style={styles.signupText}>{t('dontHaveAccount')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.signupLink}>Sign Up</Text>
+            <Text style={styles.signupLink}>{t('signUp')}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.languageSection}>
-          <Text style={styles.languageLabel}>Language</Text>
+          <Text style={styles.languageLabel}>{t('language')}</Text>
           <View style={styles.flagRow}>
-            <Image source={require('../assets/thai.png')} style={styles.flagIcon} />
-            <Image source={require('../assets/usa.png')} style={styles.flagIcon} />
-            <Image source={require('../assets/united-arab-emirates.png')} style={styles.flagIcon} />
+            {languages.map(lang => (
+              <TouchableOpacity
+                key={lang.code}
+                onPress={() => handleLanguageChange(lang.code)}
+                style={[
+                  styles.flagIcon,
+                  i18n.language === lang.code && styles.selectedFlagIcon
+                ]}
+              >
+                <Image source={lang.flag} style={styles.flagImage} />
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
         <View style={styles.logoContainer}>
@@ -140,6 +170,15 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 30,
+    left: 20,
+    zIndex: 10,
+    borderRadius: 20,
+    padding: 4,
+    elevation: 2,
   },
   header: {
     backgroundColor: DARK_GREEN,
@@ -291,8 +330,20 @@ const styles = StyleSheet.create({
     height: 38,
     marginHorizontal: 8,
     borderRadius: 19,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#eee',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedFlagIcon: {
+    borderColor: '#014737',
+    borderWidth: 3,
+  },
+  flagImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   brandingSection: {
     alignItems: 'center',

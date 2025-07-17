@@ -36,13 +36,8 @@ const BlogDetail = ({ route, navigation }) => {
 
                 <View style={styles.contentContainer}>
 
-                    <Text style={styles.sectionTitle}>Ramadan 2025 in Thailand</Text>
-                    <Text style={styles.description}>
-                        Muslims around the globe fast from dawn to dusk in the holy month of Ramadan. Many significant
-                        events in Islamic history happened during Ramzan, further enhancing this month's importance.
-                        The Holy Quran was revealed in Ramadan, and the Muslims are ordered to pay Zakat this month.
-                        Muslims also offer Namaz-e-Tarawee after each Isha prayer in this month.
-                    </Text>
+                    <Text style={styles.sectionTitle}>{t('ramadan2025')}</Text>
+                    <Text style={styles.description}>{t('ramadanDescription')}</Text>
 
                     <Text style={styles.description}>
                         Muslims have their pre-fast meal known as Sehri before the time for Fajar Namaz begins. They do
@@ -58,15 +53,11 @@ const BlogDetail = ({ route, navigation }) => {
                     </Text>
 
                     {/* FAQ Section */}
-                    <Text style={styles.sectionTitle}>What is the first date of Ramadan in Thailand?</Text>
-                    <Text style={styles.description}>
-                        The first date of Ramadan in Thailand is 01 March 2025.
-                    </Text>
+                    <Text style={styles.sectionTitle}>{t('faqFirstDate')}</Text>
+                    <Text style={styles.description}>{t('faqFirstDateAnswer')}</Text>
 
-                    <Text style={styles.sectionTitle}>When does the Ramzan 1447 Hijri begin in Thailand?</Text>
-                    <Text style={styles.description}>
-                        Ramzan 1447 Hijri begins in Thailand on 01 March 2025.
-                    </Text>
+                    <Text style={styles.sectionTitle}>{t('faqBegin')}</Text>
+                    <Text style={styles.description}>{t('faqBeginAnswer')}</Text>
                 </View>
             </ScrollView>
         </View>

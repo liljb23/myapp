@@ -27,10 +27,12 @@ import {
 } from "@expo/vector-icons";
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
+import { useTranslation } from 'react-i18next';
 
 const Search = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const { t } = useTranslation();
   const initialCategory = route.params?.category || "All";
   const [searchText, setSearchText] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("Near me");
@@ -145,15 +147,15 @@ const Search = () => {
   };
 
   const categories = [
-    "All",
-    "Restaurant",
-    "Beauty salon",
-    "Salon",
-    "Resort & Hotel",
-    "Resort",
-    "Tourist attraction",
-    "Place of prayer",
-    "Mosque",
+    t('all'),
+    t('restaurant'),
+    t('beautySalon'),
+    t('salon'),
+    t('resortAndHotel'),
+    t('resort'),
+    t('touristAttraction'),
+    t('prayerSpace'),
+    t('mosque'),
   ];
 
   useEffect(() => {
@@ -552,7 +554,7 @@ const Search = () => {
           </TouchableOpacity>
         ))
       ) : (
-        <Text style={styles.noResultsText}>No results found.</Text>
+        <Text style={styles.noResultsText}>{t('noResultsFound')}</Text>
       )}
     </ScrollView>
   );
@@ -579,7 +581,7 @@ const Search = () => {
       >
         {/* 📍 Marker สำหรับตำแหน่งปัจจุบัน */}
         {userLocation && (
-          <Marker coordinate={userLocation} title="You are here">
+          <Marker coordinate={userLocation} title={t('yourLocation')}>
             <View style={styles.currentLocationMarker}>
               <FontAwesome name="map-marker" size={36} color="blue" />
             </View>
@@ -698,7 +700,7 @@ const Search = () => {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search..."
+            placeholder={t('searchPlaceholder')}
             placeholderTextColor="#666"
             value={searchText}
             onChangeText={setSearchText}
@@ -743,7 +745,7 @@ const Search = () => {
         >
           <Feather name="map-pin" size={16} color="#014737" />
           <Text style={styles.filterButtonText}>
-            Sort by: {selectedProvince}
+            {t('sortBy', { province: selectedProvince })}
           </Text>
           <Feather name="chevron-down" size={16} color="#014737" />
         </TouchableOpacity>
@@ -781,11 +783,11 @@ const Search = () => {
             <Text style={styles.popupTitle}>{selectedPlace.name}</Text>
             <Text style={styles.popupLocation}>{selectedPlace.location}</Text>
             {selectedPlace.hours && (
-              <Text style={styles.popupHours}>Daily {selectedPlace.hours}</Text>
+              <Text style={styles.popupHours}>{t('daily')} {selectedPlace.hours}</Text>
             )}
             {selectedPlace.rating && (
               <Text style={styles.popupReviews}>
-                ⭐ {selectedPlace.rating} / {selectedPlace.reviews} Reviews
+                ⭐ {selectedPlace.rating} / {selectedPlace.reviews} {t('reviews')}
               </Text>
             )}
             <View style={styles.buttonContainer}>
@@ -795,7 +797,7 @@ const Search = () => {
                   navigation.navigate("Detail", { place: selectedPlace })
                 }
               >
-                <Text style={styles.detailsText}>Details</Text>
+                <Text style={styles.detailsText}>{t('details')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.directionsButton}
@@ -806,7 +808,7 @@ const Search = () => {
                   )
                 }
               >
-                <Text style={styles.directionsText}>Directions</Text>
+                <Text style={styles.directionsText}>{t('directions')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -823,16 +825,16 @@ const Search = () => {
       <Modal visible={provinceModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Province</Text>
+            <Text style={styles.modalTitle}>{t('selectProvince')}</Text>
             <ScrollView>
               <TouchableOpacity
                 style={styles.modalOption}
                 onPress={() => {
-                  setSelectedProvince("Near me");
+                  setSelectedProvince(t('nearMe'));
                   setProvinceModalVisible(false);
                 }}
               >
-                <Text style={styles.optionText}>Near me</Text>
+                <Text style={styles.optionText}>{t('nearMe')}</Text>
               </TouchableOpacity>
               {Object.keys(provinces).map((province) => (
                 <TouchableOpacity
@@ -851,7 +853,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setProvinceModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -861,7 +863,7 @@ const Search = () => {
       <Modal visible={categoryModalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Category</Text>
+            <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
             <ScrollView>
               {categories.map((category) => (
                 <TouchableOpacity
@@ -887,7 +889,7 @@ const Search = () => {
               style={styles.confirmButton}
               onPress={() => setCategoryModalVisible(false)}
             >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
+              <Text style={styles.confirmButtonText}>{t('confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>

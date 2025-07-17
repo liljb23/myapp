@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   function deg2rad(deg) {
@@ -26,6 +27,7 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 
 const Discount = () => {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [discounts, setDiscounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
@@ -101,7 +103,7 @@ const Discount = () => {
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.card} 
-      onPress={() => navigation.navigate('DiscountDetail', { discount: item })}
+      onPress={() => navigation.navigate('DiscountDetail', { promotionDocId: item.id })}
       activeOpacity={0.85}
     >
       <ImageBackground
@@ -112,7 +114,7 @@ const Discount = () => {
         <View style={styles.overlay}>
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
             <View style={styles.row}>
-              <Text style={styles.discount}>{item.discount ? `${item.discount}% OFF` : ''}</Text>
+              <Text style={styles.discount}>{item.discount ? `${item.discount}% ${t('discount')}` : ''}</Text>
               {item.shopDistance && item.shopDistance !== '-' && (
                 <View style={styles.distanceRow}>
                   <Feather name="map-pin" size={13} color="#fff" />
@@ -125,7 +127,7 @@ const Discount = () => {
             <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
             {item.validUntil && (
               <Text style={styles.expiry}>
-                Valid until {new Date(item.validUntil.seconds ? item.validUntil.seconds * 1000 : item.validUntil).toLocaleDateString()}
+                {t('expiresIn', { date: new Date(item.validUntil.seconds ? item.validUntil.seconds * 1000 : item.validUntil).toLocaleDateString() })}
               </Text>
             )}
           </View>
@@ -151,7 +153,7 @@ const Discount = () => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.headerText}>Discounts and benefits</Text>
+      <Text style={styles.headerText}>{t('discountsAndBenefits')}</Text>
       <FlatList data={discounts} renderItem={renderItem} keyExtractor={(item) => item.id} />
     </View>
   );

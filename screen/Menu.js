@@ -13,8 +13,10 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { FIREBASE_AUTH } from './FirebaseConfig';
 import { CommonActions } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 const Menu = ({ navigation }) => {
+    const { t } = useTranslation();
     const [user, setUser] = useState(null);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const prevUser = useRef(user);
@@ -46,11 +48,11 @@ const Menu = ({ navigation }) => {
             title: 'Change Language',
             onPress: () => navigation.navigate('LanguageSettings')
         },
-        {
-            icon: 'help-circle',
-            title: 'Help Center',
-            onPress: () => navigation.navigate('HelpCenter')
-        }
+        // {
+        //     icon: 'help-circle',
+        //     title: 'Help Center',
+        //     onPress: () => navigation.navigate('HelpCenter')
+        // }
     ];
 
     const handleLogout = () => {
@@ -158,7 +160,7 @@ const Menu = ({ navigation }) => {
                         color="#fff"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.logoutButtonText}>Logout</Text>
+                    <Text style={styles.logoutButtonText}>{t('logout')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -171,19 +173,19 @@ const Menu = ({ navigation }) => {
                         color="#FF0000"
                         style={styles.buttonIcon}
                     />
-                    <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+                    <Text style={styles.deleteAccountButtonText}>{t('deleteAccount')}</Text>
                 </TouchableOpacity>
             </View>
 
             {showConfirmation && (
                 <View style={styles.confirmationContainer}>
-                    <Text style={styles.confirmationText}>Do you want to Logout?</Text>
+                    <Text style={styles.confirmationText}>{t('logoutConfirmation')}</Text>
                     <View style={styles.confirmationButtons}>
                         <TouchableOpacity style={styles.confirmButton} onPress={confirmLogout}>
-                            <Text style={styles.confirmButtonText}>Yes, Logout</Text>
+                            <Text style={styles.confirmButtonText}>{t('yesLogout')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.cancelButton} onPress={cancelLogout}>
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                            <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

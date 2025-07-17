@@ -9,19 +9,12 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
-  Alert,
   Dimensions,
 } from "react-native";
-import { Feather, FontAwesome } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { FIREBASE_DB } from './FirebaseConfig';
-import ReviewForm from "./ReviewForm";
-import { useAuth } from './AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { useTranslation } from 'react-i18next';
-import * as Location from 'expo-location';
-import { updateCampaignReport } from './Home';
 
 const { width } = Dimensions.get("window");
 
@@ -41,64 +34,33 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return d.toFixed(1);
 }
 
-const Detail = () => {
+const ServiceDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const place = route.params?.place || {};
-  const [isReviewFormVisible, setIsReviewFormVisible] = useState(false);
-  const [reviewsData, setReviewsData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const { t } = useTranslation();
+  const service = route.params?.service || {};
   const [displayLocation, setDisplayLocation] = useState(
-    typeof place.location === "string" && place.location.match(/^[-\d.]+,\s*[-\d.]+$/)
+    typeof service.location === "string" && service.location.match(/^[-\d.]+,\s*[-\d.]+$/)
       ? ""
-      : place.location
+      : service.location
   );
   const [locationLoading, setLocationLoading] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setUserLocation(null);
-        return;
-      }
-      let location = await Location.getCurrentPositionAsync({});
-      setUserLocation(location.coords);
-    })();
-  }, []);
 
   // slider
-  const images = Array.isArray(place.serviceImages) && place.serviceImages.length > 0
-    ? place.serviceImages
-    : place.image
-      ? [place.image]
+  const images = Array.isArray(service.serviceImages) && service.serviceImages.length > 0
+    ? service.serviceImages
+    : service.image
+      ? [service.image]
       : [];
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef();
 
-  // Fetch reviews from Firebase Firestore
-  useEffect(() => {
-    if (!place.id) return;
-    const reviewsRef = collection(FIREBASE_DB, 'Reviews');
-    const q = query(reviewsRef, where('placeId', '==', place.id));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reviews = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setReviewsData(reviews);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [place.id]);
-
   useEffect(() => {
     if (
-      typeof place.location === "string" &&
-      place.location.match(/^[-\d.]+,\s*[-\d.]+$/)
+      typeof service.location === "string" &&
+      service.location.match(/^[-\d.]+,\s*[-\d.]+$/)
     ) {
-      const [lat, lng] = place.location.split(",").map(Number);
+      const [lat, lng] = service.location.split(",").map(Number);
       setLocationLoading(true);
       fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
         .then(res => res.json())
@@ -110,96 +72,30 @@ const Detail = () => {
           setLocationLoading(false);
         });
     } else {
-      setDisplayLocation(place.location);
+      setDisplayLocation(service.location);
       setLocationLoading(false);
     }
-  }, [place.location]);
+  }, [service.location]);
 
-  // เช็คว่า favorite หรือยัง
-  useEffect(() => {
-    const checkFavorite = async () => {
-      if (!user || !place.id) return;
-      const favRef = doc(FIREBASE_DB, 'user', user.uid, 'favorites', place.id);
-      const favSnap = await getDoc(favRef);
-      setIsFavorite(favSnap.exists());
-    };
-    checkFavorite();
-  }, [user, place.id]);
-
-  // toggle favorite
-  const handleToggleFavorite = async () => {
-    if (!user || !place.id) return;
-    const favRef = doc(FIREBASE_DB, 'user', user.uid, 'favorites', place.id);
-    if (isFavorite) {
-      await deleteDoc(favRef);
-      setIsFavorite(false);
-    } else {
-      await setDoc(favRef, { createdAt: new Date() });
-      setIsFavorite(true);
-    }
-  };
-
-  const handleReviewButtonPress = () => {
-    if (!user) {
-      Alert.alert(
-        t('loginRequired'),
-        t('pleaseLoginToReview'),
-        [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('login'), onPress: () => navigation.navigate('Login') }
-        ]
-      );
-      return;
-    }
-    setIsReviewFormVisible(true);
-  };
-
-  const handleCall = () => {
-    if (place?.phone) {
-      const payload = {
-        serviceId: place.id,
-        type: 'conversion'
-      };
-      if (place.campaignId !== undefined) payload.campaignId = place.campaignId;
-      if (place.entrepreneurId !== undefined) payload.entrepreneurId = place.entrepreneurId;
-      updateCampaignReport(payload);
-      Linking.openURL(`tel:${place.phone}`);
-    }
-  };
-
-  const handleOpenMap = () => {
-    if (place?.latitude && place?.longitude) {
-      const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-      const latLng = `${place.latitude},${place.longitude}`;
-      const label = place.name;
-      const url = Platform.select({
-        ios: `${scheme}${label}@${latLng}`,
-        android: `${scheme}${latLng}(${label})`
-      });
-
-      Linking.openURL(url);
-    }
-  };
-
-  // คำนวณระยะทาง
+  // คำนวณระยะทาง (admin may not need, but keep for UI match)
   const distance =
-    userLocation && place.latitude && place.longitude
+    userLocation && service.latitude && service.longitude
       ? getDistanceFromLatLonInKm(
           userLocation.latitude,
           userLocation.longitude,
-          place.latitude,
-          place.longitude
+          service.latitude,
+          service.longitude
         )
       : "";
 
   // เวลาเปิด-ปิด
   let operatingText = "N/A";
-  if (Array.isArray(place.operatingHours) && place.operatingHours.length > 0) {
-    const op = place.operatingHours[0];
+  if (Array.isArray(service.operatingHours) && service.operatingHours.length > 0) {
+    const op = service.operatingHours[0];
     operatingText = `${op.day}: ${op.openTime} - ${op.closeTime}`;
   }
 
-  if (loading || !place) {
+  if (!service) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#014737" />
@@ -209,6 +105,13 @@ const Detail = () => {
 
   return (
     <ScrollView style={styles.bg}>
+      {/* Header for admin */}
+      <View style={{flexDirection:'row',alignItems:'center',backgroundColor:'#00322D',paddingTop:50,paddingBottom:20,paddingHorizontal:20,borderBottomLeftRadius:40,borderBottomRightRadius:40,marginBottom:10}}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Feather name="arrow-left" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={{color:'white',fontSize:18,fontWeight:'bold',marginLeft:20,flex:1}}>Service Detail (Admin)</Text>
+      </View>
       <View style={styles.card}>
         {/* Slider รูปภาพ */}
         <View style={styles.sliderContainer}>
@@ -244,37 +147,26 @@ const Detail = () => {
             ))}
           </View>
         </View>
-
         {/* เนื้อหาทั้งหมดใน card */}
         <View style={styles.innerCard}>
           <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8}}>
-            <Text style={styles.title}>{place.name}</Text>
-            <TouchableOpacity onPress={handleToggleFavorite}>
-              <FontAwesome
-                name={isFavorite ? "heart" : "heart-o"}
-                size={24}
-                color={isFavorite ? "#d00" : "#014737"}
-              />
-            </TouchableOpacity>
+            <Text style={styles.title}>{service.name}</Text>
           </View>
-
           <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12}}>
             <View style={{flexDirection: "row", alignItems: "center"}}>
               <Feather name="user" size={16} color="#014737" />
-              <Text style={styles.reviewCountText}>{reviewsData.length} {t('reviews', { count: reviewsData.length })}</Text>
+              <Text style={styles.reviewCountText}>{service.reviewCount || 0} Reviews</Text>
             </View>
             <View style={{flexDirection: "row", alignItems: "center"}}>
-              <FontAwesome name="star" size={16} color="#FDCB02" />
-              <Text style={styles.ratingText}>{place.rating ? place.rating : "-"}</Text>
+              <Feather name="star" size={16} color="#FDCB02" />
+              <Text style={styles.ratingText}>{service.rating ? service.rating : "-"}</Text>
             </View>
           </View>
           <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8}}>
             <Text style={styles.distance}>{distance ? `${distance} km` : ""}</Text>
-            <Text style={styles.category}>{place.category ? `(${place.category})` : ""}</Text>
+            <Text style={styles.category}>{service.category ? `(${service.category})` : ""}</Text>
           </View>
-
           <View style={styles.divider} />
-
           <View style={styles.detailsSection}>
             <Text style={styles.detailsTitle}>{t('details')}</Text>
             <View style={styles.infoContainer}>
@@ -282,14 +174,14 @@ const Detail = () => {
               <Text style={styles.infoText}>
                 {locationLoading
                   ? t('loadingAddress')
-                  : displayLocation || "-"}
+                  : displayLocation || '-'}
               </Text>
             </View>
             <View style={styles.infoContainer}>
               <Feather name="clock" size={16} color="#014737" />
               <View style={{ flex: 1 }}>
-                {Array.isArray(place.operatingHours) && place.operatingHours.length > 0 ? (
-                  place.operatingHours.map((op, idx) => (
+                {Array.isArray(service.operatingHours) && service.operatingHours.length > 0 ? (
+                  service.operatingHours.map((op, idx) => (
                     <Text key={idx} style={styles.infoText}>
                       {op.day}: {op.openTime} - {op.closeTime}
                     </Text>
@@ -301,92 +193,69 @@ const Detail = () => {
             </View>
             <TouchableOpacity
               style={[styles.infoContainer, styles.phoneTouchable]}
-              onPress={handleCall}
+              onPress={() => service.phone && Linking.openURL(`tel:${service.phone}`)}
               activeOpacity={0.7}
             >
               <Feather name="phone" size={16} color="#014737" />
-              <Text style={styles.phoneText}>{place.phone || "-"}</Text>
+              <Text style={styles.phoneText}>{service.phone || '-'}</Text>
             </TouchableOpacity>
             <View style={styles.infoContainer}>
               <Feather name="check-circle" size={16} color="#014737" />
               <Text style={styles.infoText}>
-                {place.parkingArea ? place.parkingArea : (place.available ? t('available') : t('unavailable'))}
+                {service.parkingArea ? service.parkingArea : (service.available ? t('available') : t('unavailable'))}
               </Text>
             </View>
             {/* ปุ่ม Directions */}
-            {place.latitude && place.longitude && (
-              <TouchableOpacity style={styles.directionsBtn} onPress={handleOpenMap}>
+            {service.latitude && service.longitude && (
+              <TouchableOpacity style={styles.directionsBtn} onPress={() => {
+                const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+                const latLng = `${service.latitude},${service.longitude}`;
+                const label = service.name;
+                const url = Platform.select({
+                  ios: `${scheme}${label}@${latLng}`,
+                  android: `${scheme}${latLng}(${label})`
+                });
+                Linking.openURL(url);
+              }}>
                 <Feather name="navigation" size={16} color="white" />
                 <Text style={styles.directionsText}>{t('directions')}</Text>
               </TouchableOpacity>
             )}
           </View>
-
           <View style={styles.divider} />
-
-          {/* Section รีวิว */}
-          <Text style={styles.reviewsSectionTitle}>{t('reviewsSectionTitle')}</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color="#014737" />
-          ) : reviewsData.length > 0 ? (
-            reviewsData.slice(0, 2).map((review, index) => (
-              <View key={index} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <Feather name="user" size={16} color="#014737" />
-                  <Text style={styles.reviewUser}>{review.username || t('anonymousUser')}</Text>
-                </View>
-                <Text style={styles.reviewComment}>{review.comment}</Text>
-                <View style={styles.starContainer}>
-                  {[...Array(review.rating)].map((_, i) => (
-                    <FontAwesome key={i} name="star" size={14} color="#FDCB02" />
-                  ))}
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text style={{ color: "#888" }}>{t('noReviewsYet')}</Text>
-          )}
-
-          {/* ปุ่ม Show all reviews */}
-          <TouchableOpacity style={styles.showAllReviewsBtn}>
-            <Text style={styles.showAllReviewsText}>{t('showAllReviews')}</Text>
-          </TouchableOpacity>
-
-          {/* ปุ่ม Write review */}
-          <TouchableOpacity style={styles.reviewButton} onPress={handleReviewButtonPress}>
-            <Text style={styles.reviewButtonText}>{t('writeYourReview')}</Text>
-          </TouchableOpacity>
-
-          <ReviewForm
-            visible={isReviewFormVisible}
-            onClose={() => setIsReviewFormVisible(false)}
-            placeId={place.id}
-          />
-
           {/* Location */}
-          {place.latitude && place.longitude && (
+          {service.latitude && service.longitude && (
             <View style={styles.locationSection}>
-              <Text style={styles.locationSectionTitle}>{t('location')}</Text>
+              <Text style={styles.locationSectionTitle}>Location</Text>
               <View style={styles.mapContainer}>
                 <MapView
                   style={styles.map}
                   initialRegion={{
-                    latitude: place.latitude,
-                    longitude: place.longitude,
+                    latitude: service.latitude,
+                    longitude: service.longitude,
                     latitudeDelta: 0.01,
                     longitudeDelta: 0.01,
                   }}
                 >
                   <Marker
                     coordinate={{
-                      latitude: place.latitude,
-                      longitude: place.longitude,
+                      latitude: service.latitude,
+                      longitude: service.longitude,
                     }}
-                    title={place.name}
+                    title={service.name}
                   />
                 </MapView>
-                <TouchableOpacity style={styles.openMapButton} onPress={handleOpenMap}>
-                  <Text style={styles.openMapText}>{t('openInMaps')}</Text>
+                <TouchableOpacity style={styles.openMapButton} onPress={() => {
+                  const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+                  const latLng = `${service.latitude},${service.longitude}`;
+                  const label = service.name;
+                  const url = Platform.select({
+                    ios: `${scheme}${label}@${latLng}`,
+                    android: `${scheme}${latLng}(${label})`
+                  });
+                  Linking.openURL(url);
+                }}>
+                  <Text style={styles.openMapText}>Open in Maps</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -464,16 +333,6 @@ const styles = StyleSheet.create({
     textAlign: "left",
     flex: 1,
   },
-  rowBetween: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  rowCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   reviewCountText: {
     marginLeft: 6,
     fontSize: 14,
@@ -485,11 +344,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FDCB02",
     fontWeight: "bold",
-  },
-  ratingTextSmall: {
-    marginLeft: 4,
-    fontSize: 13,
-    color: "#666",
   },
   distance: {
     fontSize: 14,
@@ -525,8 +379,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexWrap: "wrap",
   },
-  phoneTouchable: {
-  },
+  phoneTouchable: {},
   phoneText: {
     marginLeft: 10,
     fontSize: 14,
@@ -534,68 +387,6 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     fontWeight: "bold",
     flex: 1,
-  },
-  reviewsSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#014737",
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  reviewCard: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-  },
-  reviewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  reviewUser: {
-    marginLeft: 8,
-    fontWeight: "bold",
-    color: "#014737",
-  },
-  reviewComment: {
-    color: "#666",
-    marginBottom: 6,
-  },
-  starContainer: {
-    flexDirection: "row",
-    marginTop: 2,
-  },
-  showAllReviewsBtn: {
-    backgroundColor: "#014737",
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 0,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  showAllReviewsText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  reviewButton: {
-    backgroundColor: "#014737",
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 20,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  reviewButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   directionsBtn: {
     flexDirection: "row",
@@ -644,6 +435,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
-export default Detail;
+export default ServiceDetail; 
