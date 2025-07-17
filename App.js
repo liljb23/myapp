@@ -301,26 +301,26 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="AdminScreen" component={AdminScreen} options={{ headerShown: false }} />
    
     {/* Other Admin Screens */}
-    <Stack.Screen name="AddPromotionScreen" component={AddPromotionScreen} />
-    <Stack.Screen name="EditPromotion" component={EditPromotion} />
-    <Stack.Screen name="AddScreen" component={AddScreen} />
-    <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
-    <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} />
-    <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen} />
-    <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} />
-    <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen} />
-    <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen} />
-    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} />
-    <Stack.Screen name="AddBlog" component={AddBlog} />
-    <Stack.Screen name="BlogList" component={BlogList} />
-    <Stack.Screen name="SlipDetail" component={SlipDetail} />
-    <Stack.Screen name="AdminNoti" component={AdminNoti} />
-    <Stack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
-    <Stack.Screen name="EditBlog" component={EditBlog} />
-    <Stack.Screen name="EditService" component={EditService} />
+    <Stack.Screen name="AddPromotionScreen" component={AddPromotionScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="EditPromotion" component={EditPromotion} options={{ headerShown: false }}/>
+    <Stack.Screen name="AddScreen" component={AddScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="NotificationScreen" component={NotificationScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="AddServiceScreen" component={AddServiceScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="GeneralUserQuantityScreen" component={GeneralUserQuantityScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="EntrepreneurQuantityScreen" component={EntrepreneurQuantityScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="ServicesQuantityScreen" component={ServicesQuantityScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="BlogQuantityScreen" component={BlogQuantityScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="PromotionQuantityScreen" component={PromotionQuantityScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="AddBlog" component={AddBlog} options={{ headerShown: false }}/>
+    <Stack.Screen name="BlogList" component={BlogList} options={{ headerShown: false }}/>
+    <Stack.Screen name="SlipDetail" component={SlipDetail} options={{ headerShown: false }} />
+    <Stack.Screen name="AdminNoti" component={AdminNoti} options={{ headerShown: false }} />
+    <Stack.Screen name="CampaignReportScreen" component={CampaignReportScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="EditBlog" component={EditBlog} options={{ headerShown: false }} />
+    <Stack.Screen name="EditService" component={EditService} options={{ headerShown: false }}/>
     <Stack.Screen name="EditUserScreen" component={EditUserScreen} options={{ headerShown: false }} />
-    <Stack.Screen name="AddServices" component={AddServices} />
-    <Stack.Screen name="AddMapScreen" component={AddMapScreen} />
+    <Stack.Screen name="AddServices" component={AddServices} options={{ headerShown: false }}/>
+    <Stack.Screen name="AddMapScreen" component={AddMapScreen} options={{ headerShown: false }}/>
   </Stack.Navigator>
 );
 
