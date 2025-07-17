@@ -99,20 +99,24 @@ export default function ServicesQuantityScreen() {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.avatarContainer}>
-          {item.image || (Array.isArray(item.serviceImages) && item.serviceImages.length > 0) ? (
-            <Image
-              source={{
-                uri:
-                  item.image ||
-                  (Array.isArray(item.serviceImages) && item.serviceImages.length > 0
-                    ? item.serviceImages[0]
-                    : undefined)
-              }}
-              style={styles.serviceImage}
-            />
-          ) : (
-            <Ionicons name="image-outline" size={40} color="#002B28" />
-          )}
+          {(() => {
+            let imageUrl = null;
+            if (item.image) {
+              imageUrl = item.image;
+            } else if (Array.isArray(item.serviceImages) && item.serviceImages.length > 0) {
+              imageUrl = item.serviceImages[0];
+            }
+            if (imageUrl) {
+              return (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.serviceImage}
+                />
+              );
+            } else {
+              return <Ionicons name="image-outline" size={40} color="#002B28" />;
+            }
+          })()}
         </View>
         <View style={styles.serviceInfo}>
           <Text style={styles.serviceName}>{item.name || 'N/A'}</Text>

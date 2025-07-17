@@ -2,7 +2,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { FIREBASE_DB } from './FirebaseConfig';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+
+const campaignIdMap = {
+  1: { campaignName: '1 Star - 1 Month', price: 400 },
+  2: { campaignName: '3 Stars - 3 Month', price: 1200 },
+  3: { campaignName: '5 Stars - 6 Month', price: 2500 },
+};
 
 const CampaignReportScreen = ({ navigation, route }) => {
   const campaignId = route?.params?.campaignId || "1";
@@ -30,15 +36,37 @@ const CampaignReportScreen = ({ navigation, route }) => {
       if (querySnapshot.empty) {
         setReport(null);
       } else {
-        querySnapshot.forEach(doc => {
-          const data = doc.data();
-          console.log('doc:', doc.id, data);
+        for (const docSnap of querySnapshot.docs) {
+          const data = docSnap.data();
+          console.log('doc:', docSnap.id, data);
           impressions += (data.impressions ?? data.viewCount ?? 0);
           clicks += (data.clicks ?? data.clickCount ?? 0);
           conversions += (data.conversions ?? 0);
           // Use the first doc for summary if available
-          if (!summary) summary = data;
-        });
+          if (!summary) summary = { ...data };
+        }
+        // If campaignName or price missing, fetch from CampaignSubscriptions
+        if (summary && (!summary.campaignName || !summary.price) && summary.subscriptionId) {
+          try {
+            const subRef = doc(FIREBASE_DB, 'CampaignSubscriptions', summary.subscriptionId);
+            const subSnap = await getDoc(subRef);
+            if (subSnap.exists()) {
+              const subData = subSnap.data();
+              summary.campaignName = subData.campaignName || summary.campaignName;
+              summary.price = subData.price || summary.price;
+            }
+          } catch (subErr) {
+            console.log('Failed to fetch CampaignSubscription:', subErr);
+          }
+        }
+        // Fallback: use campaignId mapping if still missing
+        if (summary && (!summary.campaignName || !summary.price) && summary.campaignId) {
+          const fallback = campaignIdMap[summary.campaignId];
+          if (fallback) {
+            summary.campaignName = summary.campaignName || fallback.campaignName;
+            summary.price = summary.price || fallback.price;
+          }
+        }
         setReport({ impressions, clicks, conversions, summary });
       }
     } catch (e) {

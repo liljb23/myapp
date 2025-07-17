@@ -15,10 +15,10 @@ import {
   TouchableWithoutFeedback,
   Image,
 } from 'react-native';
-import { FIREBASE_DB, FIREBASE_AUTH } from '../screen/FirebaseConfig';
+import { FIREBASE_DB, FIREBASE_AUTH, FIREBASE_STORAGE } from '../screen/FirebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function EditService() {
   const navigation = useNavigation();
@@ -139,21 +139,40 @@ export default function EditService() {
 
   // Helper to upload a single image and get its URL
   const uploadImageAsync = async (uri, serviceId) => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const filename = uri.substring(uri.lastIndexOf('/') + 1);
-    const storage = getStorage();
-    const storageRef = ref(storage, `serviceImages/${serviceId}/${filename}`);
-    await uploadBytes(storageRef, blob);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    try {
+      console.log('=== Upload Start ===');
+      console.log('URI:', uri);
+      console.log('ServiceID:', serviceId);
+      
+      const response = await fetch(uri);
+      console.log('Fetch response status:', response.status);
+      
+      const blob = await response.blob();
+      console.log('Blob size:', blob.size, 'Type:', blob.type);
+      
+      const filename = uri.substring(uri.lastIndexOf('/') + 1);
+      console.log('Filename:', filename);
+      
+      const storageRef = ref(FIREBASE_STORAGE, `serviceImages/${serviceId}/${filename}`);
+      console.log('Storage path:', `serviceImages/${serviceId}/${filename}`);
+      
+      await uploadBytes(storageRef, blob);
+      console.log('Upload successful');
+      
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log('Download URL:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('=== Upload Error ===');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
+      throw error;
+    }
   };
 
   const handleUpdate = async () => {
-    if (!name || !category || !location || !phone || !image ) {
-      Alert.alert('Error', 'Please fill in all required fields: Service Name, Category, Location, and Phone Number.');
-      return;
-    }
+    console.log('Update Service clicked');
 
     try {
       // Use the existing service id for storage paths
@@ -192,40 +211,30 @@ export default function EditService() {
     }
   };
 
-  const currentUser = FIREBASE_AUTH.currentUser;
-  const [userRole, setUserRole] = useState(null);
-
   useEffect(() => {
-    const fetchUserRole = async () => {
-      if (currentUser) {
-        const userDoc = await getDoc(doc(FIREBASE_DB, 'user', currentUser.uid));
-        if (userDoc.exists()) {
-          setUserRole(userDoc.data().role);
+    const fetchLatestData = async () => {
+      try {
+        const serviceRef = doc(FIREBASE_DB, 'Services', service.id);
+        const serviceDoc = await getDoc(serviceRef);
+        
+        if (serviceDoc.exists()) {
+          const latestData = serviceDoc.data();
+          setName(latestData.name || '');
+          setDescription(latestData.description || '');
+          setLocation(latestData.location || '');
+          setParkingArea(latestData.parkingArea || '');
+          setPhone(latestData.phone || '');
+          setCategory(latestData.category || '');
+          setOperatingHours(latestData.operatingHours || [{ day: 'Monday', openTime: '09:00', closeTime: '17:00' }]);
+          setServiceImages(latestData.serviceImages || []);
         }
+      } catch (error) {
+        console.error('Error fetching latest data:', error);
       }
     };
-    fetchUserRole();
-  }, [currentUser]);
 
-  if (userRole !== 'Admin') {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Service</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="alert-circle" size={48} color="#D11A2A" />
-          <Text style={{ color: '#D11A2A', fontSize: 18, marginTop: 16, textAlign: 'center' }}>
-            You do not have permission to edit this service.
-          </Text>
-        </View>
-      </View>
-    );
-  }
+    fetchLatestData();
+  }, [service.id]);
 
   return (
     <View style={styles.container}>
@@ -782,4 +791,4 @@ const styles = StyleSheet.create({
   selectedServiceTypeText: {
     color: 'white',
   },
-}); 
+});

@@ -37,6 +37,7 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 const ServiceDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const { t } = useTranslation();
   const service = route.params?.service || {};
   const [displayLocation, setDisplayLocation] = useState(
     typeof service.location === "string" && service.location.match(/^[-\d.]+,\s*[-\d.]+$/)

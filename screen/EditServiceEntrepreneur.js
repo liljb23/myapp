@@ -15,10 +15,10 @@ import {
   TouchableWithoutFeedback,
   Image,
 } from 'react-native';
-import { FIREBASE_DB, FIREBASE_AUTH } from '../screen/FirebaseConfig';
+import { FIREBASE_DB, FIREBASE_AUTH, FIREBASE_STORAGE } from '../screen/FirebaseConfig';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function EditServiceEntrepreneur() {
   const navigation = useNavigation();
@@ -37,8 +37,6 @@ export default function EditServiceEntrepreneur() {
       : [{ day: 'Monday', openTime: '09:00', closeTime: '17:00' }]
   );
   const [serviceImages, setServiceImages] = useState(service.serviceImages || []);
-
-  // Parking area modal
   const [showParkingModal, setShowParkingModal] = useState(false);
   const parkingOptions = ['Motorcycle', 'Car', 'Motorcycle & Car', 'None'];
 
@@ -49,7 +47,6 @@ export default function EditServiceEntrepreneur() {
 
   const days = ['Everyday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  // Picker state
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
   const [selectedTimeType, setSelectedTimeType] = useState('');
@@ -76,26 +73,22 @@ export default function EditServiceEntrepreneur() {
     setOperatingHours(updatedHours);
   };
 
-  // Show day picker
   const openDayPicker = (index) => {
     setSelectedDayIndex(index);
     setShowDayPicker(true);
   };
 
-  // Handle day selection
   const handleDaySelect = (day) => {
     updateOperatingHours(selectedDayIndex, 'day', day);
     setShowDayPicker(false);
   };
 
-  // Show time picker for open or close time
   const showTimePickerModal = (index, timeType) => {
     setSelectedTimeIndex(index);
     setSelectedTimeType(timeType);
     setShowTimePicker(true);
   };
 
-  // Handle time change (open or close time)
   const onTimeChange = (event, selectedTime) => {
     if (event.type === 'dismissed') {
       setShowTimePicker(false);
@@ -114,15 +107,13 @@ export default function EditServiceEntrepreneur() {
     navigation.navigate('AddMapScreen', {
       onLocationSelect: (address, lat, lng) => {
         setLocation(address);
-        // Optionally store lat/lng if you want
       }
     });
   };
 
-  // Image picker functions
   const pickServiceImages = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.IMAGE,
       allowsMultipleSelection: true,
       quality: 0.2,
     });
@@ -131,36 +122,78 @@ export default function EditServiceEntrepreneur() {
       setServiceImages([...serviceImages, ...newImages]);
     }
   };
+
   const removeServiceImage = (index) => {
     const updatedImages = [...serviceImages];
     updatedImages.splice(index, 1);
     setServiceImages(updatedImages);
   };
 
-  // Helper to upload a single image and get its URL
   const uploadImageAsync = async (uri, serviceId) => {
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const filename = uri.substring(uri.lastIndexOf('/') + 1);
-    const storage = getStorage();
-    const storageRef = ref(storage, `serviceImages/${serviceId}/${filename}`);
-    await uploadBytes(storageRef, blob);
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    try {
+      console.log('=== Upload Start ===');
+      console.log('URI:', uri);
+      console.log('ServiceID:', serviceId);
+      
+      const response = await fetch(uri);
+      console.log('Fetch response status:', response.status);
+      
+      const blob = await response.blob();
+      console.log('Blob size:', blob.size, 'Type:', blob.type);
+      
+      const filename = uri.substring(uri.lastIndexOf('/') + 1);
+      console.log('Filename:', filename);
+      
+      const storageRef = ref(FIREBASE_STORAGE, `serviceImages/${serviceId}/${filename}`);
+      console.log('Storage path:', `serviceImages/${serviceId}/${filename}`);
+      
+      await uploadBytes(storageRef, blob);
+      console.log('Upload successful');
+      
+      const downloadURL = await getDownloadURL(storageRef);
+      console.log('Download URL:', downloadURL);
+      return downloadURL;
+    } catch (error) {
+      console.error('=== Upload Error ===');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
+      throw error;
+    }
   };
 
+  useEffect(() => {
+    const fetchLatestData = async () => {
+      try {
+        const serviceRef = doc(FIREBASE_DB, 'Services', service.id);
+        const serviceDoc = await getDoc(serviceRef);
+        
+        if (serviceDoc.exists()) {
+          const latestData = serviceDoc.data();
+          setName(latestData.name || '');
+          setDescription(latestData.description || '');
+          setLocation(latestData.location || '');
+          setParkingArea(latestData.parkingArea || '');
+          setPhone(latestData.phone || '');
+          setCategory(latestData.category || '');
+          setOperatingHours(latestData.operatingHours || [{ day: 'Monday', openTime: '09:00', closeTime: '17:00' }]);
+          setServiceImages(latestData.serviceImages || []);
+        }
+      } catch (error) {
+        console.error('Error fetching latest data:', error);
+      }
+    };
+
+    fetchLatestData();
+  }, [service.id]);
+
   const handleUpdate = async () => {
-    if (!name || !category || !location || !phone ) {
-      Alert.alert('Error', 'Please fill in all required fields: Service Name, Category, Location, and Phone Number.');
-      return;
-    }
+    console.log('Update Service clicked');
 
     try {
-      // Use the existing service id for storage paths
       const serviceId = service.id;
       const serviceRef = doc(FIREBASE_DB, 'Services', serviceId);
 
-      // Upload images and get URLs (same logic as AddServices.js)
       const uploadedImageUrls = [];
       for (const image of serviceImages) {
         if (image.startsWith('http')) {
@@ -191,29 +224,6 @@ export default function EditServiceEntrepreneur() {
       Alert.alert('Error', 'Failed to update service');
     }
   };
-
-  const currentUser = FIREBASE_AUTH.currentUser;
-  const isOwner = service.EntrepreneurId === currentUser?.uid;
-
-  if (!isOwner) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Service</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Ionicons name="alert-circle" size={48} color="#D11A2A" />
-          <Text style={{ color: '#D11A2A', fontSize: 18, marginTop: 16, textAlign: 'center' }}>
-            You do not have permission to edit this service.
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -342,7 +352,6 @@ export default function EditServiceEntrepreneur() {
           </Text>
         </TouchableOpacity>
 
-        {/* Parking Area Modal */}
         <Modal
           visible={showParkingModal}
           transparent={true}
@@ -433,7 +442,6 @@ export default function EditServiceEntrepreneur() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Day Picker Modal */}
       <Modal
         visible={showDayPicker}
         transparent={true}
@@ -474,7 +482,6 @@ export default function EditServiceEntrepreneur() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Time Picker Modal */}
       {showTimePicker && (
         <Modal
           transparent={true}
@@ -747,4 +754,4 @@ const styles = StyleSheet.create({
   selectedServiceTypeText: {
     color: 'white',
   },
-}); 
+});
