@@ -681,7 +681,7 @@ const Search = () => {
           <Feather name="chevron-left" size={32} color="white" />
         </TouchableOpacity>
         <Image
-          //source={require("../assets/logo-removebg.png")}
+          source={require("../assets/logo-removebg.png")}
           style={styles.logo}
           resizeMode="contain"
         />
