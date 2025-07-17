@@ -106,7 +106,16 @@ export default function CampaignScreen({ navigation, route }) {
         <TouchableOpacity style={[styles.tabButton, styles.activeTab]}>
           <Text style={styles.tabTextActive}>Create</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButtonDisabled} onPress={() => navigation.navigate('CampaignReportScreen')}>
+        <TouchableOpacity
+          style={styles.tabButtonDisabled}
+          onPress={() => {
+            if (selectedService) {
+              navigation.navigate('CampaignReportScreen', { serviceId: selectedService.id });
+            } else {
+              Alert.alert('Please select a service first.');
+            }
+          }}
+        >
           <Text style={styles.tabTextDisabled}>Report</Text>
         </TouchableOpacity>
       </View>

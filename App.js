@@ -225,7 +225,7 @@ const EntrepreneurTabs = ({ user, onLogout }) => (
     <Tab.Screen
       name="CampaignsTab"
       component={CampaignScreen}
-      options={{ title: 'Campaigns' }}
+      options={{headerShown: false, title: 'Campaigns' }}
       initialParams={{}}
     />
   </Tab.Navigator>
@@ -284,8 +284,8 @@ const EntrepreneurStackNavigator = ({ user, onLogout }) => (
     <EntrepreneurStack.Screen name="UploadSlipScreen" component={UploadSlipScreen} />
     <EntrepreneurStack.Screen name="EditProfile" component={EditProfile} options={{ headerShown: false }} />
     <EntrepreneurStack.Screen name="LanguageSettings" component={LanguageSettings} options={{ headerShown: false }} />
-    <EntrepreneurStack.Screen name="CampaignReportScreen" component={CampaignReportScreen} />
-    <EntrepreneurStack.Screen name="CampaignScreen" component={CampaignScreen} />
+    <EntrepreneurStack.Screen name="CampaignReportScreen" component={CampaignReportScreen} options={{ headerShown: false }}/>
+    <EntrepreneurStack.Screen name="CampaignScreen" component={CampaignScreen} options={{ headerShown: false }}/>
     <EntrepreneurStack.Screen name="EditServiceEntrepreneur" component={EditServiceEntrepreneur} />
 
 

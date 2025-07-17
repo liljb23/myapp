@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { FIREBASE_DB } from './FirebaseConfig';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -9,31 +9,55 @@ const CampaignReportScreen = ({ navigation, route }) => {
   const serviceId = route?.params?.serviceId;
 
   const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchReport = async () => {
-      try {
-        if (!serviceId) return;
-        const q = query(
-          collection(FIREBASE_DB, 'CampaignReports'),
-          where('serviceId', '==', serviceId)
-        );
-        const querySnapshot = await getDocs(q);
-
-        let impressions = 0, clicks = 0, conversions = 0;
+  const fetchReport = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('serviceId used for query:', serviceId);
+      const q = query(
+        collection(FIREBASE_DB, 'CampaignReports'),
+        where('serviceId', '==', serviceId)
+      );
+      const querySnapshot = await getDocs(q);
+      console.log('querySnapshot size:', querySnapshot.size);
+      console.log('querySnapshot docs:', querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      let impressions = 0, clicks = 0, conversions = 0;
+      let summary = null;
+      if (querySnapshot.empty) {
+        setReport(null);
+      } else {
         querySnapshot.forEach(doc => {
           const data = doc.data();
-          impressions += data.impressions || 0;
-          clicks += data.clicks || 0;
-          conversions += data.conversions || 0;
+          console.log('doc:', doc.id, data);
+          impressions += (data.impressions ?? data.viewCount ?? 0);
+          clicks += (data.clicks ?? data.clickCount ?? 0);
+          conversions += (data.conversions ?? 0);
+          // Use the first doc for summary if available
+          if (!summary) summary = data;
         });
-        setReport({ impressions, clicks, conversions });
-      } catch (e) {
-        setReport({ impressions: 0, clicks: 0, conversions: 0 });
+        setReport({ impressions, clicks, conversions, summary });
       }
-    };
-    fetchReport();
+    } catch (e) {
+      setError('Failed to fetch report. Please try again.');
+      setReport(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [serviceId]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchReport();
+  };
 
   return (
     <View style={styles.container}>
@@ -42,7 +66,9 @@ const CampaignReportScreen = ({ navigation, route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Feather name="chevron-left" size={40} color="white" />
         </TouchableOpacity>
-        {/*<Image source={require('../assets/logo-removebg.png')} style={styles.logo} />*/}
+        <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+          <Feather name="refresh-cw" size={28} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* Tabs */}
@@ -56,31 +82,55 @@ const CampaignReportScreen = ({ navigation, route }) => {
         <View style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.sectionTitle}>Performance Report</Text>
-            <Text style={styles.timeText}>1 month ago ▼</Text>
+            <Text style={styles.timeText}>Last 30 days</Text>
           </View>
-
-          <View style={styles.metricBox}>
-            <Text style={styles.metricText}>Impressions 👀: {report?.impressions ?? '-'}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricText}>Clicks 👆: {report?.clicks ?? '-'}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricText}>Conversions 📞: {report?.conversions ?? '-'}</Text>
-          </View>
+          {loading || refreshing ? (
+            <ActivityIndicator size="large" color="#014737" />
+          ) : error ? (
+            <Text style={{ color: 'red', marginVertical: 10 }}>{error}</Text>
+          ) : report !== null ? (
+            <View style={styles.metricsRow}>
+              <View style={styles.metricHighlightBox}>
+                <Feather name="eye" size={28} color="#014737" />
+                <Text style={styles.metricNumber}>{report.impressions}</Text>
+                <Text style={styles.metricLabel}>Views</Text>
+              </View>
+              <View style={styles.metricHighlightBox}>
+                <Feather name="mouse-pointer" size={28} color="#014737" />
+                <Text style={styles.metricNumber}>{report.clicks}</Text>
+                <Text style={styles.metricLabel}>Clicks</Text>
+              </View>
+              <View style={styles.metricHighlightBox}>
+                <Feather name="phone-call" size={28} color="#014737" />
+                <Text style={styles.metricNumber}>{report.conversions}</Text>
+                <Text style={styles.metricLabel}>Conversions</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={{ color: '#666', marginVertical: 10 }}>
+              No report found for this service. Make sure your campaign is active and has received some activity.
+            </Text>
+          )}
         </View>
 
         {/* Campaign Summary */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Campaign Summary</Text>
-          <Text style={styles.summaryText}>Campaign Duration ⏳ - <Text style={styles.bold}>February 1 – February 28</Text></Text>
-          <Text style={styles.summaryText}>Campaign Type 📰 - <Text style={styles.bold}>500 THB / 1 Month (30 days)</Text></Text>
-          <Text style={styles.summaryText}>Campaign Cost 💰 - <Text style={styles.bold}>500 THB</Text></Text>
+          {report && report.summary ? (
+            <>
+              <Text style={styles.summaryText}>Campaign Duration ⏳ - <Text style={styles.bold}>{report.summary.startDate ? new Date(report.summary.startDate.seconds * 1000).toLocaleDateString() : '-'} – {report.summary.endDate ? new Date(report.summary.endDate.seconds * 1000).toLocaleDateString() : '-'}</Text></Text>
+              <Text style={styles.summaryText}>Campaign Type 📰 - <Text style={styles.bold}>{report.summary.campaignName || 'N/A'}</Text></Text>
+              <Text style={styles.summaryText}>Campaign Cost 💰 - <Text style={styles.bold}>{report.summary.price ? `${report.summary.price} THB` : 'N/A'}</Text></Text>
+            </>
+          ) : (
+            <Text style={styles.summaryText}>No campaign summary available.</Text>
+          )}
         </View>
 
         {/* Renew Button */}
         <TouchableOpacity style={styles.renewButton}>
           <Text style={styles.renewButtonText}>Renew the campaign</Text>
+          <Text style={styles.renewDesc}>Extend your campaign to keep your service visible and attract more customers!</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -179,6 +229,44 @@ const styles = StyleSheet.create({
   },
   navItem: { alignItems: 'center' },
   navText: { fontSize: 12, color: 'white', marginTop: 4 },
+  refreshButton: {
+    marginLeft: 'auto',
+    padding: 8,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  metricHighlightBox: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    marginHorizontal: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    elevation: 1,
+  },
+  metricNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#014737',
+    marginTop: 4,
+  },
+  metricLabel: {
+    fontSize: 14,
+    color: '#014737',
+    marginTop: 2,
+  },
+  renewDesc: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
 });
 
 export default CampaignReportScreen;
