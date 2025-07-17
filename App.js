@@ -57,6 +57,7 @@ import EditUserScreen from './screen/EditUserScreen';
 import AddServices from './screen/AddServices';
 import AddPromotionScreen from './screen/AddPromotionScreen';
 import EditServiceEntrepreneur from './screen/EditServiceEntrepreneur';
+import ServiceDetail from './screen/ServiceDetail';
 
 
 // Create navigators
@@ -321,6 +322,7 @@ const AdminStackNavigator = ({ user }) => (
     <Stack.Screen name="EditUserScreen" component={EditUserScreen} options={{ headerShown: false }} />
     <Stack.Screen name="AddServices" component={AddServices} options={{ headerShown: false }}/>
     <Stack.Screen name="AddMapScreen" component={AddMapScreen} options={{ headerShown: false }}/>
+    <Stack.Screen name="ServiceDetail" component={ServiceDetail} options={{ headerShown: false }}/>
   </Stack.Navigator>
 );
 
