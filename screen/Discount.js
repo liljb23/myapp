@@ -103,7 +103,7 @@ const Discount = () => {
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.card} 
-      onPress={() => navigation.navigate('DiscountDetail', { promotionDocId: item.id })}
+      onPress={() => navigation.navigate('DiscountDetail', { discount: item })}
       activeOpacity={0.85}
     >
       <ImageBackground

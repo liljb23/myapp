@@ -25,8 +25,16 @@ const DiscountDetail = ({ route }) => {
   const { t } = useTranslation();
   const { discount } = route.params;
 
+  if (!discount) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ color: '#c00', fontWeight: 'bold' }}>No discount data found.</Text>
+      </View>
+    );
+  }
+
   const [isUsed, setIsUsed] = useState(false);
-  const [remaining, setRemaining] = useState(discount.remaining);
+  const [remaining, setRemaining] = useState(discount?.remaining ?? 0);
 
   let expiryText = '';
   if (discount.validUntil) {
