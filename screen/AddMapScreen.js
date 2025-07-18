@@ -1,276 +1,233 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, Platform, PermissionsAndroid } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import Geolocation from '@react-native-community/geolocation';
-import { GOOGLE_MAPS_API_KEY } from '../config/keys';
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, Button, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 import Icon from 'react-native-vector-icons/Feather';
-import { FIREBASE_DB } from './FirebaseConfig';
-
-const THAILAND_DEFAULT = {
-  latitude: 13.622930713074025,
-  longitude: 100.5102271018507,
-  latitudeDelta: 0.01,
-  longitudeDelta: 0.01,
-};
 
 export default function AddMapScreen({ navigation, route }) {
-  const [location, setLocation] = useState(null);
+  const mapRef = useRef(null);
+  const [searchText, setSearchText] = useState('');
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [address, setAddress] = useState('');
   const { onLocationSelect } = route.params;
 
-  useEffect(() => {
-    setLocation(THAILAND_DEFAULT);
-    setSelectedLocation({
-      latitude: THAILAND_DEFAULT.latitude,
-      longitude: THAILAND_DEFAULT.longitude,
-    });
-    fetchAddress(THAILAND_DEFAULT.latitude, THAILAND_DEFAULT.longitude);
-    requestLocationPermission();
-  }, []);
-
-  const requestLocationPermission = async () => {
-    if (Platform.OS === 'ios') {
-      Geolocation.requestAuthorization();
-      getCurrentLocation();
-    } else {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: "Location Permission",
-            message: "This app needs access to your location",
-            buttonNeutral: "Ask Me Later",
-            buttonNegative: "Cancel",
-            buttonPositive: "OK"
-          }
-        );
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          getCurrentLocation();
-        } else {
-          setLocation(THAILAND_DEFAULT);
-          setSelectedLocation({
-            latitude: THAILAND_DEFAULT.latitude,
-            longitude: THAILAND_DEFAULT.longitude,
-          });
-          fetchAddress(THAILAND_DEFAULT.latitude, THAILAND_DEFAULT.longitude);
-          Alert.alert('Permission Denied', 'Location permission is required to use your location. Showing default location in Thailand.');
-        }
-      } catch (err) {
-        console.warn(err);
-        setLocation(THAILAND_DEFAULT);
-        setSelectedLocation({
-          latitude: THAILAND_DEFAULT.latitude,
-          longitude: THAILAND_DEFAULT.longitude,
-        });
-        fetchAddress(THAILAND_DEFAULT.latitude, THAILAND_DEFAULT.longitude);
-        Alert.alert('Error', 'Could not get your current location, showing default location in Thailand.');
-      }
-    }
+  const handleMapPress = async (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedLocation({ latitude, longitude });
+    getAddressFromCoordinates(latitude, longitude);
   };
 
-  const isThailand = (lat, lng) =>
-    lat >= 5 && lat <= 21 && lng >= 97 && lng <= 106;
-
-  const getCurrentLocation = () => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        if (isThailand(lat, lng)) {
-          const coords = {
-            latitude: lat,
-            longitude: lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
-          setLocation(coords);
-          setSelectedLocation({ latitude: lat, longitude: lng });
-          fetchAddress(lat, lng);
-        } else {
-          setLocation(THAILAND_DEFAULT);
-          setSelectedLocation({
-            latitude: THAILAND_DEFAULT.latitude,
-            longitude: THAILAND_DEFAULT.longitude,
-          });
-          fetchAddress(THAILAND_DEFAULT.latitude, THAILAND_DEFAULT.longitude);
-        }
-      },
-      (error) => {
-        setLocation(THAILAND_DEFAULT);
-        setSelectedLocation({
-          latitude: THAILAND_DEFAULT.latitude,
-          longitude: THAILAND_DEFAULT.longitude,
-        });
-        fetchAddress(THAILAND_DEFAULT.latitude, THAILAND_DEFAULT.longitude);
-        Alert.alert('Error', 'Could not get your current location, showing default location in Thailand.');
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
-    );
-  };
-
-  const fetchAddress = async (lat, lng) => {
+  const getAddressFromCoordinates = async (latitude, longitude) => {
     try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await response.json();
-      if (data.results && data.results[0]) {
-        setAddress(data.results[0].formatted_address);
+      const result = await Location.reverseGeocodeAsync({ latitude, longitude });
+      if (result.length > 0) {
+        const fullAddress = `${result[0].name || ''} ${result[0].street || ''} ${result[0].district || ''}`;
+        setAddress(fullAddress.trim());
       } else {
-        setAddress('');
+        setAddress('Address not found');
       }
-    } catch (error) {
-      setAddress('');
+    } catch {
+      setAddress('Address not found');
     }
   };
 
-  const handleMapPress = (event) => {
-    const { coordinate } = event.nativeEvent;
-    setSelectedLocation(coordinate);
-    fetchAddress(coordinate.latitude, coordinate.longitude);
+  const handleSearch = async () => {
+    if (!searchText) return;
+    try {
+      const locations = await Location.geocodeAsync(searchText);
+      if (locations.length > 0) {
+        const { latitude, longitude } = locations[0];
+        setSelectedLocation({ latitude, longitude });
+        mapRef.current.animateToRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        getAddressFromCoordinates(latitude, longitude);
+      } else {
+        Alert.alert('Not Found', 'Please enter a location name');
+      }
+    } catch {
+      Alert.alert('Failed', 'Can not find location');
+    }
   };
 
-  const handleConfirmLocation = () => {
-    if (!selectedLocation) {
-      Alert.alert('Error', 'Please select a location on the map');
+  const handleCurrentLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('No Permission', 'Please allow location access');
       return;
     }
-    onLocationSelect(address, selectedLocation.latitude, selectedLocation.longitude);
+
+    const location = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = location.coords;
+    setSelectedLocation({ latitude, longitude });
+    mapRef.current.animateToRegion({
+      latitude,
+      longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+    getAddressFromCoordinates(latitude, longitude);
+  };
+
+  const handleConfirm = () => {
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Select a location on the map or search for a location');
+      return;
+    }
+    onLocationSelect(address || 'Address not found', selectedLocation.latitude, selectedLocation.longitude);
     navigation.goBack();
   };
 
   return (
-    <View style={styles.container}>
-      {/* Rounded Header */}
+    <View style={{ flex: 1 }}>
+      
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="white" />
+          <Icon name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Select Location</Text>
       </View>
 
-      {/* Address Pill */}
-      <View style={styles.addressPill}>
-        <Icon name="map-pin" size={18} color="#014737" style={{ marginRight: 6 }} />
-        <Text style={styles.addressText} numberOfLines={1}>
-          {address ? address : 'Select a location'}
-        </Text>
+      {/* Search Box */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Search e.g. Nong Chok"
+          style={styles.searchInput}
+          returnKeyType="search"
+          onSubmitEditing={handleSearch}
+        />
+        <Button title="Search" onPress={handleSearch} />
       </View>
 
-      {/* Current Location Button */}
-      <TouchableOpacity style={styles.currentLocationBtn} onPress={getCurrentLocation}>
-        <Text style={styles.currentLocationText}>Current Location</Text>
-      </TouchableOpacity>
-
-      {/* Map */}
-      {location && (
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          initialRegion={THAILAND_DEFAULT}
-          region={selectedLocation ? {
-            latitude: selectedLocation.latitude,
-            longitude: selectedLocation.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          } : THAILAND_DEFAULT}
-          onPress={handleMapPress}
-          showsUserLocation
-          showsMyLocationButton
-        >
-          {selectedLocation && (
-            <Marker
-              coordinate={selectedLocation}
-              pinColor="#014737"
-            />
-          )}
-        </MapView>
+      {/* Address Display */}
+      {address !== '' && (
+        <View style={styles.addressPill}>
+          <Icon name="map-pin" size={16} color="#014737" style={{ marginRight: 6 }} />
+          <Text style={styles.addressText} numberOfLines={1}>{address}</Text>
+        </View>
       )}
 
-      {/* Done Button */}
-      <TouchableOpacity style={styles.doneButton} onPress={handleConfirmLocation}>
-        <Text style={styles.doneButtonText}>Done</Text>
+      {/* Map */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={{
+          latitude: 13.7563,
+          longitude: 100.5018,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+        onPress={handleMapPress}
+        showsUserLocation
+        showsMyLocationButton
+      >
+        {selectedLocation && (
+          <Marker coordinate={selectedLocation} title="Location" />
+        )}
+      </MapView>
+
+      {/* Current Location Button */}
+      <TouchableOpacity style={styles.currentLocationButton} onPress={handleCurrentLocation}>
+        <Text style={styles.currentLocationText}>My Location</Text>
       </TouchableOpacity>
+
+      {/* Confirm Button */}
+      <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <Text style={styles.confirmButtonText}>Confirm</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   header: {
     backgroundColor: '#014737',
     height: 90,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     paddingBottom: 12,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
+    paddingHorizontal: 16,
   },
   backButton: {
-    alignSelf: 'flex-start',
-    padding: 8,
+    padding: 4,
+    marginRight: 10,
   },
-  addressPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    alignSelf: 'center',
-    marginTop: 100,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    maxWidth: '90%',
-  },
-  addressText: {
-    color: '#014737',
-    fontSize: 15,
-    flex: 1,
-  },
-  currentLocationBtn: {
-    backgroundColor: '#014737',
-    borderRadius: 12,
-    alignSelf: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    marginBottom: 8,
-  },
-  currentLocationText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  map: {
-    flex: 1,
-    marginTop: 8,
-    marginBottom: 70,
-  },
-  doneButton: {
-    position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
-    backgroundColor: '#014737',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  doneButtonText: {
+  headerTitle: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  addressPill: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+    elevation: 2,
+  },
+  addressText: {
+    color: '#014737',
+    fontSize: 14,
+    flex: 1,
+  },
+  map: {
+    flex: 1,
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    backgroundColor: '#014737',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  currentLocationText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  confirmButton: {
+    position: 'absolute',
+    bottom: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: '#014737',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

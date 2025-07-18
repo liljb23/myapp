@@ -400,9 +400,12 @@ const styles = StyleSheet.create({
   filterButton: {
     backgroundColor: '#e0e0e0',
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 6,
     marginRight: 10,
+    width: 130, // Fixed width for uniform size
+    height: 40,
+    alignItems: 'center',
   },
   filterButtonActive: {
     backgroundColor: '#002B28',

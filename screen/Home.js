@@ -800,7 +800,7 @@ const PromotionCard = ({
 }) => (
   <TouchableOpacity
     style={styles.promotionCardNew}
-    onPress={() => navigation.navigate('DiscountDetail', { discount: { discount, title, description, expiryDate, shopName, shopImage, shopDistance, ...promo } })}
+    onPress={() => navigation.navigate('DiscountDetail', { promotionDocId: promo.id })}
     activeOpacity={0.85}
   >
     {shopImage ? (

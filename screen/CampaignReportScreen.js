@@ -22,16 +22,16 @@ const CampaignReportScreen = ({ navigation, route }) => {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
+      try {
       console.log('serviceId used for query:', serviceId);
-      const q = query(
-        collection(FIREBASE_DB, 'CampaignReports'),
-        where('serviceId', '==', serviceId)
-      );
-      const querySnapshot = await getDocs(q);
+        const q = query(
+          collection(FIREBASE_DB, 'CampaignReports'),
+          where('serviceId', '==', serviceId)
+        );
+        const querySnapshot = await getDocs(q);
       console.log('querySnapshot size:', querySnapshot.size);
       console.log('querySnapshot docs:', querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      let impressions = 0, clicks = 0, conversions = 0;
+        let impressions = 0, clicks = 0, conversions = 0;
       let summary = null;
       if (querySnapshot.empty) {
         setReport(null);
@@ -127,13 +127,13 @@ const CampaignReportScreen = ({ navigation, route }) => {
                 <Feather name="mouse-pointer" size={28} color="#014737" />
                 <Text style={styles.metricNumber}>{report.clicks}</Text>
                 <Text style={styles.metricLabel}>Clicks</Text>
-              </View>
+          </View>
               <View style={styles.metricHighlightBox}>
                 <Feather name="phone-call" size={28} color="#014737" />
                 <Text style={styles.metricNumber}>{report.conversions}</Text>
                 <Text style={styles.metricLabel}>Conversions</Text>
-              </View>
-            </View>
+          </View>
+          </View>
           ) : (
             <Text style={{ color: '#666', marginVertical: 10 }}>
               No report found for this service. Make sure your campaign is active and has received some activity.

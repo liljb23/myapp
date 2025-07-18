@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,27 +14,117 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import { doc, runTransaction } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { doc, runTransaction, getDoc, setDoc } from 'firebase/firestore';
 import { FIREBASE_DB } from './FirebaseConfig';
-import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
 const DiscountDetail = ({ route }) => {
   const navigation = useNavigation();
-  const { t } = useTranslation();
-  const { discount } = route.params;
+  const { promotionDocId } = route.params;
 
-  if (!discount) {
+  const [discount, setDiscount] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isUsed, setIsUsed] = useState(false);
+  const [remaining, setRemaining] = useState(null);
+
+  useEffect(() => {
+    const fetchPromotion = async () => {
+      console.log('fetchPromotion called with promotionDocId:', promotionDocId);
+      if (!promotionDocId) {
+        console.log('No promotionDocId provided');
+        return;
+      }
+      try {
+        const promoRef = doc(FIREBASE_DB, 'promotions', promotionDocId);
+        console.log('promoRef:', promoRef);
+        const promoSnap = await getDoc(promoRef);
+        console.log('promoSnap.exists():', promoSnap.exists());
+        if (promoSnap.exists()) {
+          setDiscount({ id: promoSnap.id, ...promoSnap.data() });
+          setRemaining(promoSnap.data().remaining);
+
+          const userId = getAuth().currentUser?.uid;
+          console.log('userId:', userId);
+          if (userId) {
+            const userCouponRef = doc(FIREBASE_DB, `user/${userId}/coupons/${promoSnap.id}`);
+            const userCouponSnap = await getDoc(userCouponRef);
+            console.log('userCouponSnap.exists():', userCouponSnap.exists());
+            if (userCouponSnap.exists()) {
+              setIsUsed(true);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Error in fetchPromotion:', e);
+        Alert.alert('Error', 'ไม่พบข้อมูลคูปองนี้');
+      } finally {
+        setLoading(false);
+        console.log('setLoading(false) called');
+      }
+    };
+    fetchPromotion();
+  }, [promotionDocId]);
+
+  const handleUseDiscount = async () => {
+    if (isUsed) {
+      Alert.alert('Error', 'คุณใช้คูปองนี้ไปแล้ว');
+      return;
+    }
+    if (remaining === 0) return;
+    try {
+      const userId = getAuth().currentUser?.uid;
+      if (!userId) {
+        Alert.alert('Error', 'กรุณาเข้าสู่ระบบก่อนใช้คูปอง');
+        return;
+      }
+
+      const userCouponRef = doc(FIREBASE_DB, `user/${userId}/coupons/${discount.id}`);
+      const userCouponSnap = await getDoc(userCouponRef);
+      if (userCouponSnap.exists()) {
+        Alert.alert('Error', 'คุณใช้คูปองนี้ไปแล้ว');
+        setIsUsed(true);
+        return;
+      }
+
+      const promoRef = doc(FIREBASE_DB, 'promotions', discount.id);
+      await runTransaction(FIREBASE_DB, async (transaction) => {
+        const promoDoc = await transaction.get(promoRef);
+        if (!promoDoc.exists()) throw 'Promotion not found';
+        const current = promoDoc.data().remaining ?? 0;
+        if (current <= 0) throw 'Coupon limit reached';
+        transaction.update(promoRef, { remaining: current - 1 });
+        setRemaining(current - 1);
+      });
+
+      // บันทึกการใช้คูปองใน sub-collection ของ user
+      await setDoc(userCouponRef, {
+        usedAt: new Date(),
+        couponId: discount.id,
+      });
+
+      setIsUsed(true);
+      Alert.alert('Success', 'บันทึกคูปองสำเร็จ!');
+    } catch (e) {
+      Alert.alert('Error', e.toString());
+    }
+  };
+
+  if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <Text style={{ color: '#c00', fontWeight: 'bold' }}>No discount data found.</Text>
+        <Text>Loading...</Text>
       </View>
     );
   }
-
-  const [isUsed, setIsUsed] = useState(false);
-  const [remaining, setRemaining] = useState(discount?.remaining ?? 0);
+  if (!discount) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text>ไม่พบข้อมูลคูปองนี้</Text>
+      </View>
+    );
+  }
 
   let expiryText = '';
   if (discount.validUntil) {
@@ -42,31 +132,11 @@ const DiscountDetail = ({ route }) => {
       discount.validUntil.seconds
         ? new Date(discount.validUntil.seconds * 1000)
         : new Date(discount.validUntil);
-    expiryText = t('expiresIn', { date: date.toLocaleDateString() });
+    expiryText = `Valid until ${date.toLocaleDateString()}`;
   }
 
   // DEBUG
-  //const debugInfo = JSON.stringify({ ...discount, remaining }, null, 2);
-
-  // คูปอง
-  const handleUseDiscount = async () => {
-    if (isUsed || remaining === 0) return;
-    try {
-      const promoRef = doc(FIREBASE_DB, 'promotions', discount.id);
-      await runTransaction(FIREBASE_DB, async (transaction) => {
-        const promoDoc = await transaction.get(promoRef);
-        if (!promoDoc.exists()) throw t('error');
-        const current = promoDoc.data().remaining ?? 0;
-        if (current <= 0) throw t('couponLimitReached');
-        transaction.update(promoRef, { remaining: current - 1 });
-        setRemaining(current - 1);
-      });
-      setIsUsed(true);
-      Alert.alert(t('success'), t('couponSaved'));
-    } catch (e) {
-      Alert.alert(t('error'), e.toString());
-    }
-  };
+  const debugInfo = JSON.stringify({ ...discount, remaining }, null, 2);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,7 +165,7 @@ const DiscountDetail = ({ route }) => {
         </View>
 
         <View style={styles.content}>
-          <Text style={styles.restaurantName}>{discount.shopName || discount.name || t('discount')}</Text>
+          <Text style={styles.restaurantName}>{discount.shopName || discount.name || 'Discount'}</Text>
           {discount.shopDistance && discount.shopDistance !== '-' ? (
             <View style={styles.distanceRow}>
               <Feather name="map-pin" size={14} color="#014737" />
@@ -104,9 +174,9 @@ const DiscountDetail = ({ route }) => {
           ) : null}
           <View style={styles.discountInfo}>
             <Text style={styles.discountText}>
-              {t('discount')}{' '}
+              Discount{' '}
               <Text style={styles.discountAmount}>
-                {discount.discount ? `${discount.discount}% ${t('discount')}` : ''}
+                {discount.discount ? `${discount.discount}% OFF` : ''}
               </Text>
             </Text>
             {expiryText ? (
@@ -115,14 +185,15 @@ const DiscountDetail = ({ route }) => {
           </View>
 
           <Text style={styles.description}>
-            {discount.description || t('discountDescription')}
+            {discount.description ||
+              'A discount code can only be used when booking a hotel room.'}
           </Text>
 
-          {/* DEBUG SECTION
+          {/* DEBUG SECTION */}
           <View style={styles.debugBox}>
             <Text style={{ fontWeight: 'bold', color: '#c00' }}>DEBUG:</Text>
             <Text style={{ fontSize: 12, color: '#333' }}>{debugInfo}</Text>
-          </View> */}
+          </View>
         </View>
       </ScrollView>
 
@@ -144,10 +215,10 @@ const DiscountDetail = ({ route }) => {
             ]}
           >
             {remaining === 0
-              ? t('couponLimitReached')
+              ? 'Coupon Limit Reached'
               : isUsed
-              ? t('discountUsed')
-              : t('useDiscount')}
+              ? 'Discount Used'
+              : 'Use Discount'}
           </Text>
         </TouchableOpacity>
       </View>

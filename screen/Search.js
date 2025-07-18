@@ -147,7 +147,7 @@ const Search = () => {
   };
 
   const categories = [
-    t('all'),
+    t('All'),
     t('restaurant'),
     t('beautySalon'),
     t('resortAndHotel'),
