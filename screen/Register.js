@@ -18,6 +18,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useTranslation } from 'react-i18next';
 import { Feather } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { navigationRef } from '../App';
 
 const Register = ({ navigation }) => {
   const { t, i18n } = useTranslation();
@@ -87,7 +88,7 @@ const Register = ({ navigation }) => {
       } else if (role === "Entrepreneur") {
         navigation.navigate('EntrepreneurHome'); // 👉 สำหรับผู้ประกอบการ
       } else {
-        navigation.navigate('Home'); // 👉 สำหรับผู้ใช้ทั่วไป
+        navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] }); // 👉 สำหรับผู้ใช้ทั่วไป
       }
       
     } catch (error) {
@@ -142,7 +143,7 @@ const Register = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigation.navigate('Home')}
+        onPress={() => navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] })}
       >
         <Feather name="arrow-left" size={32} color="#fff" />
       </TouchableOpacity>

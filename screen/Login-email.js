@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Feather } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { navigationRef } from '../App';
 
 const DARK_GREEN = '#014737';
 const YELLOW = '#FFD600';
@@ -37,7 +38,7 @@ const LoginEmail = (props) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
-      navigation.navigate('Home');
+      navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] });
     } catch (error) {
       console.error(error);
       Alert.alert('Error', error.message);
@@ -61,7 +62,7 @@ const LoginEmail = (props) => {
     <SafeAreaView style={styles.safeArea}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigation.navigate('Home')}
+        onPress={() => navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] })}
       >
         <Feather name="arrow-left" size={32} color="#ffff" />
       </TouchableOpacity>

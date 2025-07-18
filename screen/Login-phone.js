@@ -71,7 +71,7 @@ const LoginPhone = () => {
     try {
       const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
       await signInWithCredential(FIREBASE_AUTH, credential);
-      navigation.navigate('Home');
+      navigation.navigate('GeneralUserTabs', { screen: 'HomeTab' });
     } catch (error) {
       console.error('Error verifying code:', error);
       Alert.alert('Error', error.message);
