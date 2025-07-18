@@ -183,12 +183,10 @@ const GeneralUserTabs = ({ user, onLogout }) => (
   >
     <Tab.Screen
       name="HomeTab"
-      component={Home}
       options={{ headerShown: false, title: 'Home' }}
     >
       {props => <Home {...props} user={user} onLogout={onLogout} />}
     </Tab.Screen>
-    <Tab.Screen name="Home" component={Home} options={{ headerShown: false, title: 'Discount' }} />
     <Tab.Screen name="DiscountTab" component={Discount} options={{ headerShown: false, title: 'Discount' }} />
     <Tab.Screen name="SearchTab" component={Search} options={{ headerShown: false, title: 'Search' }} />
     <Tab.Screen name="BlogTab" component={Blog} options={{ headerShown: false, title: 'Blog' }} />
