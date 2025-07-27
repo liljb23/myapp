@@ -309,85 +309,88 @@ const Search = () => {
 
     setFilteredServices(filtered);
   }, [searchText, selectedProvince, selectedCategory, services]);
+  // Helper: Calculate distance in km
+  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Main filtering logic
   useEffect(() => {
-    if (selectedProvince === "Near me" && userLocation) {
-      filterNearbyServices();
-    } else {
+    const filterServices = async () => {
       let filtered = services;
-      if (searchText.trim() !== "") {
-        filtered = filtered.filter((service) =>
-          service.name?.toLowerCase().includes(searchText.toLowerCase())
-        );
+      // If 'Near me' is selected, get user location and filter by distance
+      if (selectedProvince === 'Near me') {
+        let coords = userLocation;
+        if (!coords) {
+          let { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            setFilteredServices([]);
+            setIsLoading(false);
+            setError('Location permission denied');
+            return;
+          }
+          let location = await Location.getCurrentPositionAsync({});
+          coords = location.coords;
+          setUserLocation(coords);
+        }
+        filtered = services
+          .map(service => {
+            if (service.latitude && service.longitude) {
+              const distance = getDistanceFromLatLonInKm(
+                coords.latitude,
+                coords.longitude,
+                Number(service.latitude),
+                Number(service.longitude)
+              );
+              return { ...service, distance };
+            }
+            return null;
+          })
+          .filter(service => service && service.distance <= 10)
+          .sort((a, b) => a.distance - b.distance);
+        setFilteredServices(filtered);
+        setIsLoading(false);
+        return;
       }
-      if (selectedProvince !== "All" && selectedProvince !== "Near me") {
+      // Province filter (not 'Near me')
+      if (selectedProvince !== 'All') {
         filtered = filtered.filter(
-          (service) =>
+          service =>
             service.location &&
             service.location.toLowerCase().includes(selectedProvince.toLowerCase())
         );
       }
-      setFilteredServices(filtered);
-    }
-  }, [searchText, selectedProvince, services, userLocation]);
-
-  // ✅ โหลดข้อมูลเริ่มต้นจาก Firebase
-  const fetchServicesByProvinceAndCategory = useCallback(
-    async (province, category) => {
-      setIsLoading(true);
-      try {
-        let q;
-        if (province !== "Near me" && category !== "All") {
-          q = query(
-            collection(FIREBASE_DB, "Services"),
-            where("category", "==", category)
-          );
-        } else if (category !== "All") {
-          q = query(
-            collection(FIREBASE_DB, "Services"),
-            where("category", "==", category)
-          );
-        } else {
-          q = collection(FIREBASE_DB, "Services");
-        }
-
-        const snapshot = await getDocs(q);
-        const serviceList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          distance: userLocation
-            ? getDistanceFromLatLonInKm(
-                userLocation.latitude,
-                userLocation.longitude,
-                doc.data().latitude,
-                doc.data().longitude
-              )
-            : null,
-        }));
-
-        let filtered = serviceList;
-        if (province !== "All" && province !== "Near me") {
-          filtered = filtered.filter(
-            (service) =>
-              service.location &&
-              service.location.toLowerCase().includes(province.toLowerCase())
-          );
-        }
-        if (province === "Near me" && userLocation) {
-          filtered.sort(
-            (a, b) => (a.distance || Infinity) - (b.distance || Infinity)
-          );
-        }
-        setFilteredServices(filtered);
-        setServices(filtered);
-      } catch (err) {
-        setError("Error fetching services");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+      // Category filter
+      if (selectedCategory && selectedCategory !== 'All') {
+        filtered = filtered.filter(
+          service =>
+            service.category &&
+            service.category.toLowerCase() === selectedCategory.toLowerCase()
+        );
       }
-    },
-    [userLocation]
-  );
+      // Search text filter
+      if (searchText.trim() !== '') {
+        filtered = filtered.filter(service =>
+          service.name?.toLowerCase().includes(searchText.toLowerCase())
+        );
+      }
+      setFilteredServices(filtered);
+      setIsLoading(false);
+    };
+    setIsLoading(true);
+    setError(null);
+    filterServices();
+  }, [services, selectedProvince, selectedCategory, searchText, userLocation]);
 
   const openDirections = useCallback((latitude, longitude) => {
     const scheme = Platform.select({
@@ -402,31 +405,6 @@ const Search = () => {
 
     Linking.openURL(url).catch((err) => setError("Error opening maps"));
   }, []);
-
-  const filterNearbyServices = async () => {
-    let location = await Location.getCurrentPositionAsync({});
-    setUserLocation(location.coords);
-
-    const nearbyServices = services
-      .map((service) => {
-        if (service.latitude && service.longitude) {
-          const distance = getDistanceFromLatLonInKm(
-            location.coords.latitude,
-            location.coords.longitude,
-            Number(service.latitude),
-            Number(service.longitude)
-          );
-
-          console.log(`📍 ${service.name} is ${distance.toFixed(2)} km away`);
-          return { ...service, distance: distance.toFixed(2) };
-        }
-        return null;
-      })
-      .filter((service) => service && service.distance < 10)
-      .sort((a, b) => a.distance - b.distance);
-
-    setFilteredServices(nearbyServices);
-  };
 
   const NavItem = ({ title, iconName, active, onPress }) => (
     <TouchableOpacity
@@ -497,20 +475,6 @@ const Search = () => {
         </Callout>
       </Marker>
     );
-  };
-
-  const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
   };
 
   const renderListView = () => (
@@ -621,14 +585,6 @@ const Search = () => {
       </View>
     );
   };
-  useEffect(() => {
-    fetchServicesByProvinceAndCategory(selectedProvince, selectedCategory);
-  }, [
-    selectedProvince,
-    selectedCategory,
-    userLocation,
-    fetchServicesByProvinceAndCategory,
-  ]);
   const zoomIn = () => {
     const newZoomLevel = zoomLevel - 0.01; // Decrease delta for zooming in
     setZoomLevel(newZoomLevel);
