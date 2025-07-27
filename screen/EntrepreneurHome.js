@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { signOut } from 'firebase/auth';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * หน้าหลักสำหรับผู้ประกอบการ - จัดการบริการและโปรโมชั่น
+ */
 const EntrepreneurHome = () => {
   const navigation = useNavigation();
   const [services, setServices] = useState([]);
@@ -24,7 +27,11 @@ const EntrepreneurHome = () => {
   const [search, setSearch] = useState('');
   const [user, setUser] = useState(FIREBASE_AUTH.currentUser);
   const { t } = useTranslation();
+  const [promotionsMap, setPromotionsMap] = useState({});
 
+  /**
+   * ดึงข้อมูลบริการและโปรโมชั่นเมื่อเข้าหน้า
+   */
   useFocusEffect(
     useCallback(() => {
       const fetchServices = async () => {
@@ -41,9 +48,26 @@ const EntrepreneurHome = () => {
           const querySnapshot = await getDocs(q);
           const servicesData = querySnapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            status: doc.data().status || 'active', // Default to active if no status
           }));
           setServices(servicesData);
+
+          // Fetch promotions for all services
+          if (servicesData.length > 0) {
+            const serviceIds = servicesData.map(s => s.id);
+            const promoQ = query(collection(FIREBASE_DB, 'promotions'), where('serviceId', 'in', serviceIds));
+            const promoSnap = await getDocs(promoQ);
+            const map = {};
+            promoSnap.docs.forEach(doc => {
+              const promo = { id: doc.id, ...doc.data() };
+              if (!map[promo.serviceId]) map[promo.serviceId] = [];
+              map[promo.serviceId].push(promo);
+            });
+            setPromotionsMap(map);
+          } else {
+            setPromotionsMap({});
+          }
         } catch (error) {
           console.error('Error fetching services:', error);
           Alert.alert('Error', 'Failed to load services');
@@ -55,35 +79,60 @@ const EntrepreneurHome = () => {
     }, [])
   );
 
+  /**
+   * นำทางไปหน้าเพิ่มบริการ
+   */
   const handleAddService = () => {
     navigation.navigate('AddServices');
   };
 
+  /**
+   * นำทางไปหน้าแก้ไขบริการ
+   */
   const handleEditService = (service) => {
     navigation.navigate('EditServiceEntrepreneur', { service });
   };
 
+  /**
+   * นำทางไปหน้าจัดการแคมเปญ
+   */
   const handleViewCampaigns = (serviceId) => {
     navigation.navigate('CampaignScreen', { serviceId });
   };
 
-  const handleDelete = (userId) => {
+  /**
+   * จัดการสถานะบริการ (active/inactive)
+   */
+  const handleStatusToggle = async (serviceId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const actionText = newStatus === 'active' ? 'activate' : 'deactivate';
+    
     Alert.alert(
-      'Delete Entrepreneur',
-      'Are you sure you want to delete this entrepreneur?',
+      `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} Service`,
+      `Are you sure you want to ${actionText} this service?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+          style: newStatus === 'inactive' ? 'destructive' : 'default',
           onPress: async () => {
             try {
-              await deleteDoc(doc(FIREBASE_DB, 'user', userId));
-              setServices(services.filter(u => u.id !== userId));
-              Alert.alert('Entrepreneur deleted');
+              await updateDoc(doc(FIREBASE_DB, 'Services', serviceId), {
+                status: newStatus,
+                updatedAt: new Date()
+              });
+              
+              // Update local state
+              setServices(services.map(service => 
+                service.id === serviceId 
+                  ? { ...service, status: newStatus }
+                  : service
+              ));
+              
+              Alert.alert('Success', `Service ${actionText}d successfully`);
             } catch (error) {
-              console.error('Error deleting entrepreneur:', error);
-              Alert.alert('Failed to delete entrepreneur');
+              console.error('Error updating service status:', error);
+              Alert.alert('Error', `Failed to ${actionText} service`);
             }
           },
         },
@@ -91,6 +140,9 @@ const EntrepreneurHome = () => {
     );
   };
 
+  /**
+   * ออกจากระบบ
+   */
   const handleLogout = async () => {
     try {
       await signOut(FIREBASE_AUTH);
@@ -103,7 +155,9 @@ const EntrepreneurHome = () => {
     }
   };
 
-  // handle the selected location
+  /**
+   * จัดการตำแหน่งที่เลือก
+   */
   const onLocationSelect = (location) => {
    
   };
@@ -116,6 +170,9 @@ const EntrepreneurHome = () => {
     );
   }
 
+  const activeServices = services.filter(service => service.status === 'active');
+  const inactiveServices = services.filter(service => service.status === 'inactive');
+
   return (
     <View style={styles.container}>
       {/* Custom Header */}
@@ -125,9 +182,9 @@ const EntrepreneurHome = () => {
           style={{ width: 150, height: 150 }}
           resizeMode="contain"
         />
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Feather name="menu" size={24} color="white" style={{ marginRight: 16 }} />
-        </View>
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.navigate('Menu')}>
+          <Feather name="menu" size={28} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -160,8 +217,13 @@ const EntrepreneurHome = () => {
         <Text style={styles.addServiceText}>{t('addService')}</Text>
       </TouchableOpacity>
 
-      {/* Section Title */}
-      <Text style={styles.sectionTitle}>{t('yourService')}</Text>
+      {/* Section Title with Status Counts */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{t('yourService')}</Text>
+        <Text style={styles.statusCount}>
+          Active: {activeServices.length} | Inactive: {inactiveServices.length} | Total: {services.length}
+        </Text>
+      </View>
 
       {/* Content */}
       {services.length === 0 ? (
@@ -171,13 +233,26 @@ const EntrepreneurHome = () => {
       ) : (
         <ScrollView style={styles.content}>
           {services.map((service) => (
-            <View key={service.id} style={styles.card}>
+            <View key={service.id} style={[styles.card, service.status === 'inactive' && styles.inactiveCard]}>
               <View style={styles.cardHeader}>
                 <View style={styles.imageContainer}>
                   <Image source={{ uri: service.image }} style={styles.serviceImage} />
                 </View>
                 <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
+                  <View style={styles.serviceNameRow}>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <View style={[
+                      styles.statusBadge, 
+                      service.status === 'active' ? styles.activeBadge : styles.inactiveBadge
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        service.status === 'active' ? styles.activeStatusText : styles.inactiveStatusText
+                      ]}>
+                        {service.status === 'active' ? 'Active' : 'Inactive'}
+                      </Text>
+                    </View>
+                  </View>
                   <Text style={styles.serviceLocation}>{service.location}</Text>
                   <View style={styles.ratingContainer}>
                     <Text style={styles.ratingText}>⭐ {service.rating || 'N/A'}</Text>
@@ -203,6 +278,25 @@ const EntrepreneurHome = () => {
                 </View>
               </View>
 
+              {/* Promotions Section */}
+              {promotionsMap[service.id] && promotionsMap[service.id].length > 0 && (
+                <View style={{ marginTop: 10, backgroundColor: '#e6f2ef', borderRadius: 8, padding: 10 }}>
+                  <Text style={{ fontWeight: 'bold', color: '#014737', marginBottom: 4 }}>Promotions</Text>
+                  {promotionsMap[service.id].map(promo => (
+                    <TouchableOpacity
+                      key={promo.id}
+                      style={{ marginBottom: 6, padding: 6, backgroundColor: '#fff', borderRadius: 6 }}
+                      onPress={() => navigation.navigate('DiscountDetailEntrepreneur', { promotionDocId: promo.id })}
+                    >
+                      <Text style={{ fontWeight: 'bold', color: '#11332D' }}>{promo.title}</Text>
+                      <Text style={{ color: '#666' }}>{promo.description}</Text>
+                      <Text style={{ color: '#014737' }}>Discount: {promo.discount ? `${promo.discount}%` : 'N/A'}</Text>
+                      <Text style={{ color: '#999', fontSize: 12 }}>Valid until: {promo.validUntil && promo.validUntil.seconds ? new Date(promo.validUntil.seconds * 1000).toLocaleDateString() : 'N/A'}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
               <View style={styles.cardFooter}>
                 <TouchableOpacity
                   style={styles.actionButton}
@@ -221,11 +315,23 @@ const EntrepreneurHome = () => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={{ marginTop: 10, backgroundColor: '#ffeaea', padding: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' }}
-                  onPress={() => handleDelete(service.id)}
+                  style={[
+                    styles.actionButton,
+                    service.status === 'active' ? styles.deactivateButton : styles.activateButton
+                  ]}
+                  onPress={() => handleStatusToggle(service.id, service.status)}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#D11A2A" />
-                  <Text style={{ color: '#D11A2A', marginLeft: 5 }}>Delete</Text>
+                  <Ionicons 
+                    name={service.status === 'active' ? 'pause-outline' : 'play-outline'} 
+                    size={20} 
+                    color={service.status === 'active' ? '#F44336' : '#4CAF50'} 
+                  />
+                  <Text style={[
+                    styles.actionButtonText,
+                    service.status === 'active' ? styles.deactivateButtonText : styles.activateButtonText
+                  ]}>
+                    {service.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -311,11 +417,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sectionTitle: {
-    marginHorizontal: 24,
-    marginTop: 24,
     fontWeight: 'bold',
     fontSize: 16,
     color: '#11332D',
+  },
+  statusCount: {
+    fontSize: 14,
+    color: '#7A8686',
+    marginTop: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 24,
+    marginTop: 24,
   },
   emptyState: {
     flex: 1,
@@ -344,6 +460,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  inactiveCard: {
+    opacity: 0.7,
+  },
   cardHeader: {
     flexDirection: 'row',
     marginBottom: 15,
@@ -359,10 +478,37 @@ const styles = StyleSheet.create({
   serviceInfo: {
     flex: 1,
   },
+  serviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   serviceName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginLeft: 10,
+  },
+  activeBadge: {
+    backgroundColor: '#E8F5E9',
+  },
+  inactiveBadge: {
+    backgroundColor: '#FBE9E7',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeStatusText: {
+    color: '#4CAF50',
+  },
+  inactiveStatusText: {
+    color: '#F44336',
   },
   serviceLocation: {
     fontSize: 14,
@@ -435,6 +581,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     marginTop: 3,
+  },
+  menuButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  activateButton: {
+    backgroundColor: '#E8F5E9',
+  },
+  activateButtonText: {
+    color: '#4CAF50',
+  },
+  deactivateButton: {
+    backgroundColor: '#FFEBEE',
+  },
+  deactivateButtonText: {
+    color: '#F44336',
   },
 });
 

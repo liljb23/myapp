@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -21,7 +21,7 @@ const ALLOWED_CATEGORIES = [
   'Beauty & Salon',
   'Prayer Space',
   'Mosque',
-  'Tourist attraction',
+  'Tourist Attraction',
   'Resort & Hotel',
 ];
 
@@ -39,6 +39,7 @@ export default function ServicesQuantityScreen() {
       const servicesList = snap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
+        status: doc.data().status || 'active', // Default to active if no status
       }));
       setServices(servicesList);
     } catch (e) {
@@ -60,26 +61,36 @@ export default function ServicesQuantityScreen() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleDelete = async (serviceId) => {
+  const handleStatusToggle = async (serviceId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const actionText = newStatus === 'active' ? 'activate' : 'deactivate';
+    
     Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this service?',
+      `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} Service`,
+      `Are you sure you want to ${actionText} this service?`,
       [
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
+          text: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+          style: newStatus === 'inactive' ? 'destructive' : 'default',
           onPress: async () => {
             try {
-              await deleteDoc(doc(FIREBASE_DB, 'Services', serviceId));
-              Alert.alert('Success', 'Service deleted successfully');
-              fetchServices(); // Refresh the list
+              await updateDoc(doc(FIREBASE_DB, 'Services', serviceId), {
+                status: newStatus,
+                updatedAt: new Date()
+              });
+              
+              // Update local state
+              setServices(services.map(service => 
+                service.id === serviceId 
+                  ? { ...service, status: newStatus }
+                  : service
+              ));
+              
+              Alert.alert('Success', `Service ${actionText}d successfully`);
             } catch (error) {
-              console.error('Error deleting service:', error);
-              Alert.alert('Error', 'Failed to delete service');
+              console.error('Error updating service status:', error);
+              Alert.alert('Error', `Failed to ${actionText} service`);
             }
           },
         },
@@ -96,7 +107,7 @@ export default function ServicesQuantityScreen() {
   };
 
   const renderServiceCard = ({ item }) => (
-    <View style={styles.card}>
+    <View style={[styles.card, item.status === 'inactive' && styles.inactiveCard]}>
       <View style={styles.cardHeader}>
         <View style={styles.avatarContainer}>
           {(() => {
@@ -119,7 +130,20 @@ export default function ServicesQuantityScreen() {
           })()}
         </View>
         <View style={styles.serviceInfo}>
-          <Text style={styles.serviceName}>{item.name || 'N/A'}</Text>
+          <View style={styles.serviceNameRow}>
+            <Text style={styles.serviceName}>{item.name || 'N/A'}</Text>
+            <View style={[
+              styles.statusBadge, 
+              item.status === 'active' ? styles.activeBadge : styles.inactiveBadge
+            ]}>
+              <Text style={[
+                styles.statusText,
+                item.status === 'active' ? styles.activeStatusText : styles.inactiveStatusText
+              ]}>
+                {item.status === 'active' ? 'Active' : 'Inactive'}
+              </Text>
+            </View>
+          </View>
           <Text style={styles.category}>{item.category || 'No category'}</Text>
         </View>
       </View>
@@ -142,11 +166,23 @@ export default function ServicesQuantityScreen() {
           <Text style={styles.actionButtonText}>Edit</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDelete(item.id)}
+          style={[
+            styles.actionButton,
+            item.status === 'active' ? styles.deactivateButton : styles.activateButton
+          ]}
+          onPress={() => handleStatusToggle(item.id, item.status)}
         >
-          <Ionicons name="trash-outline" size={20} color="#F44336" />
-          <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Delete</Text>
+          <Ionicons 
+            name={item.status === 'active' ? 'pause-outline' : 'play-outline'} 
+            size={20} 
+            color={item.status === 'active' ? '#F44336' : '#4CAF50'} 
+          />
+          <Text style={[
+            styles.actionButtonText,
+            item.status === 'active' ? styles.deactivateButtonText : styles.activateButtonText
+          ]}>
+            {item.status === 'active' ? 'Deactivate' : 'Activate'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.actionButton, styles.viewButton]}
@@ -159,6 +195,9 @@ export default function ServicesQuantityScreen() {
     </View>
   );
 
+  const activeServices = services.filter(service => service.status === 'active');
+  const inactiveServices = services.filter(service => service.status === 'inactive');
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -167,8 +206,10 @@ export default function ServicesQuantityScreen() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Services</Text>
-          <Text style={styles.quantityText}>Total: {filteredServices.length}</Text>
+          <Text style={styles.headerTitle}>Services Management</Text>
+          <Text style={styles.quantityText}>
+            Active: {activeServices.length} | Inactive: {inactiveServices.length} | Total: {services.length}
+          </Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('AddServiceScreen')}>
           <Ionicons name="add-circle-outline" size={24} color="white" />
@@ -288,6 +329,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  inactiveCard: {
+    opacity: 0.7, // Make inactive cards slightly faded
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,10 +349,42 @@ const styles = StyleSheet.create({
   serviceInfo: {
     flex: 1,
   },
+  serviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   serviceName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    marginLeft: 10,
+  },
+  activeBadge: {
+    backgroundColor: '#e8f5e9',
+    borderColor: '#4CAF50',
+    borderWidth: 1,
+  },
+  inactiveBadge: {
+    backgroundColor: '#fdecea',
+    borderColor: '#F44336',
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeStatusText: {
+    color: '#4CAF50',
+  },
+  inactiveStatusText: {
+    color: '#F44336',
   },
   category: {
     fontSize: 16,
@@ -347,18 +423,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     marginRight: 8,
   },
-  deleteButton: {
-    backgroundColor: '#fdecea',
-    borderColor: '#F44336',
-    borderWidth: 1,
-  },
-  viewButton: {
+  activateButton: {
     backgroundColor: '#e8f5e9',
+  },
+  deactivateButton: {
+    backgroundColor: '#fdecea',
   },
   actionButtonText: {
     marginLeft: 5,
     color: '#002B28',
     fontSize: 14,
+  },
+  activateButtonText: {
+    color: '#4CAF50',
+  },
+  deactivateButtonText: {
+    color: '#F44336',
   },
   tabBar: {
     flexDirection: 'row',

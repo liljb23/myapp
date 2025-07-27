@@ -278,10 +278,10 @@ export default function AddServiceScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.serviceTypeButton, category === 'Tourist attraction' && styles.selectedServiceType]}
-          onPress={() => setCategory('Tourist attraction')}>
+          style={[styles.serviceTypeButton, category === 'Tourist Attraction' && styles.selectedServiceType]}
+          onPress={() => setCategory('Tourist Attraction')}>
           <Image source={require('../assets/traveling.png')} style={styles.serviceTypeIcon} />
-          <Text style={[styles.serviceTypeText, category === 'Tourist attraction' && styles.selectedServiceTypeText]}>Tourist attraction</Text>
+          <Text style={[styles.serviceTypeText, category === 'Tourist Attraction' && styles.selectedServiceTypeText]}>Tourist Attraction</Text>
         </TouchableOpacity>
       </ScrollView>
 

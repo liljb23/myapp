@@ -5,9 +5,13 @@ import { FIREBASE_DB } from './FirebaseConfig';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const campaignIdMap = {
-  1: { campaignName: '1 Star - 1 Month', price: 400 },
-  2: { campaignName: '3 Stars - 3 Month', price: 1200 },
-  3: { campaignName: '5 Stars - 6 Month', price: 2500 },
+  1: { campaignName: '1 Star - 1 Month', price: 500, duration: '1 Month' },
+  2: { campaignName: '3 Stars - 3 Month', price: 1200, duration: '3 Month' },
+  3: { campaignName: '5 Stars - 6 Month', price: 2500, duration: '6 Month' },
+  // Add string keys for mock campaigns
+  'mock1': { campaignName: '1 Star - 1 Month', price: 1, duration: '1 Month' },
+  'mock2': { campaignName: '3 Stars - 3 Month', price: 1200, duration: '3 Month' },
+  'mock3': { campaignName: '5 Stars - 6 Month', price: 2500, duration: '6 Month' },
 };
 
 const CampaignReportScreen = ({ navigation, route }) => {
@@ -59,6 +63,29 @@ const CampaignReportScreen = ({ navigation, route }) => {
             console.log('Failed to fetch CampaignSubscription:', subErr);
           }
         }
+        // Fetch campaign details from CampaignSubscriptions using campaignId
+        if (summary && summary.campaignId) {
+          try {
+            const campaignQuery = query(
+              collection(FIREBASE_DB, 'CampaignSubscriptions'),
+              where('campaignId', '==', summary.campaignId),
+              where('serviceId', '==', serviceId)
+            );
+            const campaignSnap = await getDocs(campaignQuery);
+            if (!campaignSnap.empty) {
+              const campaignData = campaignSnap.docs[0].data();
+              console.log('Campaign data found:', campaignData);
+              summary.duration = campaignData.duration || summary.duration;
+              summary.endDate = campaignData.endDate || summary.endDate;
+              summary.campaignName = campaignData.campaignName || summary.campaignName;
+              summary.price = campaignData.price || summary.price;
+            } else {
+              console.log('No campaign data found for campaignId:', summary.campaignId, 'serviceId:', serviceId);
+            }
+          } catch (campaignErr) {
+            console.log('Failed to fetch campaign details:', campaignErr);
+          }
+        }
         // Fallback: use campaignId mapping if still missing
         if (summary && (!summary.campaignName || !summary.price) && summary.campaignId) {
           const fallback = campaignIdMap[summary.campaignId];
@@ -67,6 +94,14 @@ const CampaignReportScreen = ({ navigation, route }) => {
             summary.price = summary.price || fallback.price;
           }
         }
+        // Additional fallback for duration using campaignId mapping
+        if (summary && !summary.duration && summary.campaignId) {
+          const fallback = campaignIdMap[summary.campaignId];
+          if (fallback) {
+            summary.duration = fallback.duration || summary.duration;
+          }
+        }
+        console.log('Final summary with duration:', summary);
         setReport({ impressions, clicks, conversions, summary });
       }
     } catch (e) {
@@ -92,7 +127,7 @@ const CampaignReportScreen = ({ navigation, route }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="chevron-left" size={40} color="white" />
+          <Feather name="chevron-left" size={40} color="white"  />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
           <Feather name="refresh-cw" size={28} color="white" />
@@ -101,16 +136,16 @@ const CampaignReportScreen = ({ navigation, route }) => {
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity style={styles.inactiveTab}><Text style={styles.tabTextInactive}  onPress={() => navigation.navigate('CampaignScreen')}>Create</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.activeTab}><Text style={styles.tabTextActive} >Report</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.inactiveTab}><Text style={styles.tabTextInactive}  onPress={() => navigation.navigate('CampaignScreen')}>สร้าง</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.activeTab}><Text style={styles.tabTextActive} >รายงาน</Text></TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Performance Report */}
         <View style={styles.card}>
           <View style={styles.rowBetween}>
-            <Text style={styles.sectionTitle}>Performance Report</Text>
-            <Text style={styles.timeText}>Last 30 days</Text>
+            <Text style={styles.sectionTitle}>รายงานประสิทธิภาพ</Text>
+            <Text style={styles.timeText}>30 วันล่าสุด</Text>
           </View>
           {loading || refreshing ? (
             <ActivityIndicator size="large" color="#014737" />
@@ -121,44 +156,54 @@ const CampaignReportScreen = ({ navigation, route }) => {
               <View style={styles.metricHighlightBox}>
                 <Feather name="eye" size={28} color="#014737" />
                 <Text style={styles.metricNumber}>{report.impressions}</Text>
-                <Text style={styles.metricLabel}>Views</Text>
+                <Text style={styles.metricLabel}>การดู</Text>
               </View>
               <View style={styles.metricHighlightBox}>
                 <Feather name="mouse-pointer" size={28} color="#014737" />
                 <Text style={styles.metricNumber}>{report.clicks}</Text>
-                <Text style={styles.metricLabel}>Clicks</Text>
+                <Text style={styles.metricLabel}>การคลิก</Text>
           </View>
               <View style={styles.metricHighlightBox}>
                 <Feather name="phone-call" size={28} color="#014737" />
                 <Text style={styles.metricNumber}>{report.conversions}</Text>
-                <Text style={styles.metricLabel}>Conversions</Text>
+                <Text style={styles.metricLabel}>การติดต่อ</Text>
           </View>
           </View>
           ) : (
             <Text style={{ color: '#666', marginVertical: 10 }}>
-              No report found for this service. Make sure your campaign is active and has received some activity.
+              ไม่พบรายงานสำหรับบริการนี้ ตรวจสอบให้แน่ใจว่าแคมเปญของคุณใช้งานได้และมีการใช้งาน
             </Text>
           )}
         </View>
 
         {/* Campaign Summary */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Campaign Summary</Text>
+          <Text style={styles.sectionTitle}>สรุปแคมเปญ</Text>
           {report && report.summary ? (
             <>
-              <Text style={styles.summaryText}>Campaign Duration ⏳ - <Text style={styles.bold}>{report.summary.startDate ? new Date(report.summary.startDate.seconds * 1000).toLocaleDateString() : '-'} – {report.summary.endDate ? new Date(report.summary.endDate.seconds * 1000).toLocaleDateString() : '-'}</Text></Text>
-              <Text style={styles.summaryText}>Campaign Type 📰 - <Text style={styles.bold}>{report.summary.campaignName || 'N/A'}</Text></Text>
-              <Text style={styles.summaryText}>Campaign Cost 💰 - <Text style={styles.bold}>{report.summary.price ? `${report.summary.price} THB` : 'N/A'}</Text></Text>
+              <Text style={styles.summaryText}>ระยะเวลาแคมเปญ ⏳ - <Text style={styles.bold}>{report.summary.duration || 'ไม่มีข้อมูล'}</Text></Text>
+              <Text style={styles.summaryText}>วันที่สิ้นสุด 📅 - <Text style={styles.bold}>{report.summary.endDate ? new Date(report.summary.endDate.seconds * 1000).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'ไม่มีข้อมูล'}</Text></Text>
+              <Text style={styles.summaryText}>ช่วงวันที่ 📊 - <Text style={styles.bold}>{report.summary.startDate ? new Date(report.summary.startDate.seconds * 1000).toLocaleDateString('th-TH') : '-'} – {report.summary.endDate ? new Date(report.summary.endDate.seconds * 1000).toLocaleDateString('th-TH') : '-'}</Text></Text>
+              <Text style={styles.summaryText}>ประเภทแคมเปญ 📰 - <Text style={styles.bold}>{report.summary.campaignName || 'ไม่มีข้อมูล'}</Text></Text>
+              <Text style={styles.summaryText}>ค่าใช้จ่ายแคมเปญ 💰 - <Text style={styles.bold}>{report.summary.price ? `${report.summary.price} บาท` : 'ไม่มีข้อมูล'}</Text></Text>
             </>
           ) : (
-            <Text style={styles.summaryText}>No campaign summary available.</Text>
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataTitle}>แคมเปญได้รับการอนุมัติ! 🎉</Text>
+              <Text style={styles.noDataText}>
+                แคมเปญของคุณได้รับการอนุมัติและใช้งานได้แล้ว ข้อมูลประสิทธิภาพจะปรากฏที่นี่เมื่อแคมเปญของคุณเริ่มได้รับการดูและมีปฏิสัมพันธ์
+              </Text>
+              <Text style={styles.noDataNote}>
+                ตรวจสอบอีกครั้งในอีกไม่กี่ชั่วโมงเพื่อดูเมตริกประสิทธิภาพแคมเปญของคุณ
+              </Text>
+            </View>
           )}
         </View>
 
         {/* Renew Button */}
         <TouchableOpacity style={styles.renewButton}>
-          <Text style={styles.renewButtonText}>Renew the campaign</Text>
-          <Text style={styles.renewDesc}>Extend your campaign to keep your service visible and attract more customers!</Text>
+          <Text style={styles.renewButtonText}>ต่ออายุแคมเปญ</Text>
+          <Text style={styles.renewDesc}>ขยายแคมเปญของคุณเพื่อให้บริการของคุณมองเห็นได้และดึงดูดลูกค้าให้มากขึ้น!</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -294,6 +339,27 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
     opacity: 0.8,
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noDataTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#014737',
+    marginBottom: 10,
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  noDataNote: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 

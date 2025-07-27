@@ -122,9 +122,9 @@ export default function CampaignScreen({ navigation, route }) {
 
       {/* Description */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Campaign Boost Your Service</Text>
+        <Text style={styles.cardTitle}>แคมเปญเพิ่มยอดขายบริการของคุณ</Text>
         <Text style={styles.cardText}>
-          "Increase visibility and attract more customers! Join our promotional campaign to get your service featured and enjoy exclusive benefits that help your business grow!" 🚀
+          "เพิ่มการมองเห็นและดึงดูดลูกค้าให้มากขึ้น! เข้าร่วมแคมเปญโปรโมชั่นของเราเพื่อให้บริการของคุณโดดเด่นและเพลิดเพลินกับสิทธิประโยชน์พิเศษที่ช่วยให้ธุรกิจของคุณเติบโต!" 🚀
         </Text>
       </View>
 
@@ -149,7 +149,7 @@ export default function CampaignScreen({ navigation, route }) {
                 🕒 {selectedService.operatingHours?.[0]?.day || '-'} {selectedService.operatingHours?.[0]?.openTime || ''}–{selectedService.operatingHours?.[0]?.closeTime || ''}
               </Text>
               <Text style={styles.serviceRating}>
-                ⭐ {selectedService.rating || 0} / {selectedService.reviews || 0} Reviews
+                ⭐ {selectedService.rating || 0} / {selectedService.reviews || 0} รีวิว
               </Text>
             </View>
             <Feather name="chevron-right" size={20} color="#014737" />
@@ -161,7 +161,7 @@ export default function CampaignScreen({ navigation, route }) {
 
       {/* Campaign Options */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Select a campaign</Text>
+        <Text style={styles.cardTitle}>เลือกแคมเปญ</Text>
         {campaignOptions.map(c => (
           <TouchableOpacity
             key={c.id}
@@ -170,29 +170,29 @@ export default function CampaignScreen({ navigation, route }) {
           >
             <Text style={styles.starText}>{'★'.repeat(c.stars)}</Text>
             <View>
-              <Text style={styles.priceText}>{c.price.toLocaleString()} THB / {c.duration}</Text>
-              <Text style={styles.daysText}>({c.days} days)</Text>
+              <Text style={styles.priceText}>{c.price.toLocaleString()} บาท / {c.duration}</Text>
+              <Text style={styles.daysText}>({c.days} วัน)</Text>
             </View>
-            {c.recommended && <Text style={styles.recommendBadge}>Recommend</Text>}
+            {c.recommended && <Text style={styles.recommendBadge}>แนะนำ</Text>}
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Payment Confirmation */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment & Subscription Confirmation</Text>
+        <Text style={styles.cardTitle}>การยืนยันการชำระเงินและสมัครสมาชิก</Text>
         <Text style={styles.totalText}>
           ฿ {selectedCampaign?.price?.toLocaleString() || '0'}
         </Text>
         <Text style={styles.durationText}>
-          Campaign {selectedCampaign?.price?.toLocaleString()} THB / {selectedCampaign?.duration || '-'}
+          แคมเปญ {selectedCampaign?.price?.toLocaleString()} บาท / {selectedCampaign?.duration || '-'}
         </Text>
         <TouchableOpacity style={styles.purchaseButton} onPress={handlePurchase}>
-          <Text style={styles.purchaseText}>Purchase</Text>
+          <Text style={styles.purchaseText}>ซื้อ</Text>
         </TouchableOpacity>
         <Text style={styles.footerNote}>
-          By proceeding, you agree to HalalWay promotional program, payment terms,
-          and campaign usage policy (service recommendation).
+          เมื่อดำเนินการต่อ คุณยอมรับโปรแกรมโปรโมชั่น HalalWay เงื่อนไขการชำระเงิน
+          และนโยบายการใช้งานแคมเปญ (การแนะนำบริการ)
         </Text>
       </View>
 
@@ -211,7 +211,7 @@ export default function CampaignScreen({ navigation, route }) {
             padding: 20,
             maxHeight: '80%',
           }}>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>Select Your Services</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 16 }}>เลือกบริการของคุณ</Text>
             <FlatList
               data={services}
               keyExtractor={(item) => item.id}
@@ -248,7 +248,7 @@ export default function CampaignScreen({ navigation, route }) {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: 'white', fontWeight: 'bold' }}>Done</Text>
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>เสร็จสิ้น</Text>
             </TouchableOpacity>
           </View>
         </View>

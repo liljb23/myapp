@@ -11,6 +11,10 @@ import { collection, getDocs, query, where, doc, setDoc, deleteDoc, increment, s
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 
+/**
+ * อัปเดตรายงานแคมเปญใน Firestore
+ * @param {Object} params - ข้อมูลแคมเปญ
+ */
 export const updateCampaignReport = async ({ campaignId, serviceId, entrepreneurId, type }) => {
   try {
     if (!campaignId || !serviceId || !entrepreneurId || !type) {
@@ -38,6 +42,9 @@ export const updateCampaignReport = async ({ campaignId, serviceId, entrepreneur
   }
 };
 
+/**
+ * หน้าหลัก - แสดงบริการ, บทความ, สถานที่สำคัญ
+ */
 const Home = () => {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
@@ -55,6 +62,9 @@ const Home = () => {
   const [favoriteIds, setFavoriteIds] = useState([]);
   const { t } = useTranslation();
 
+  /**
+   * คำนวณระยะทางระหว่างสองจุด (Haversine formula)
+   */
   function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
     function deg2rad(deg) {
       return deg * (Math.PI / 180);
@@ -73,6 +83,9 @@ const Home = () => {
     return d;
   }
 
+  /**
+   * ดึงตำแหน่งผู้ใช้
+   */
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -85,6 +98,9 @@ const Home = () => {
     })();
   }, []);
 
+  /**
+   * ตรวจสอบสถานะการเข้าสู่ระบบ
+   */
   useEffect(() => {
     const unsubscribe = FIREBASE_AUTH.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
@@ -93,6 +109,9 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * ดึงข้อมูลทั้งหมดจาก Firestore
+   */
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -105,16 +124,22 @@ const Home = () => {
 
         // Recommends
         const recommendCollectionRef = collection(FIREBASE_DB, 'CampaignSubscriptions');
-        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'approved'));
+        const recommendQuery = query(recommendCollectionRef, where('status', '==', 'active'));
         const recommendSnapshot = await getDocs(recommendQuery);
         const recommendsRaw = recommendSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('[DEBUG] Raw recommends:', recommendsRaw);
         const serviceIds = recommendsRaw.map(r => r.serviceId).filter(Boolean);
         let recommendsWithService = [];
+        let missingServiceIdCampaigns = recommendsRaw.filter(r => !r.serviceId);
+        if (missingServiceIdCampaigns.length > 0) {
+          console.warn('[DEBUG] Campaigns with missing serviceId:', missingServiceIdCampaigns);
+        }
+        let servicesMap = {};
         if (serviceIds.length > 0) {
           const batchSize = 10;
-          let servicesMap = {};
           for (let i = 0; i < serviceIds.length; i += batchSize) {
             const batchIds = serviceIds.slice(i, i + batchSize);
+            console.log('[DEBUG] Fetching services for batchIds:', batchIds);
             const servicesQuery = query(
               servicesCollectionRef,
               where('__name__', 'in', batchIds)
@@ -123,20 +148,55 @@ const Home = () => {
             servicesSnapshot.docs.forEach(doc => {
               servicesMap[doc.id] = { id: doc.id, ...doc.data() };
             });
+            // Log missing services in this batch
+            batchIds.forEach(id => {
+              if (!servicesMap[id]) {
+                console.warn(`[DEBUG] Service with id ${id} not found in Services collection.`);
+              }
+            });
           }
-          recommendsWithService = recommendsRaw.map(r => ({
-            ...r,
-            ...servicesMap[r.serviceId],
-          }));
-
-          const seen = new Set();
-          recommendsWithService = recommendsWithService.filter(r => {
-            if (!r.serviceId) return false;
-            if (seen.has(r.serviceId)) return false;
-            seen.add(r.serviceId);
-            return true;
-          });
         }
+        recommendsWithService = recommendsRaw.map(r => {
+          if (!r.serviceId) {
+            // Return a placeholder for missing serviceId
+            return {
+              ...r,
+              name: r.name || '[No Service]',
+              category: '[No Service]',
+              distance: '-',
+              image: undefined,
+              _distanceValue: Infinity,
+              _missingService: true,
+            };
+          }
+          const service = servicesMap[r.serviceId];
+          if (!service) {
+            // Return a placeholder for missing service
+            return {
+              ...r,
+              name: '[Service Not Found]',
+              category: '[Service Not Found]',
+              distance: '-',
+              image: undefined,
+              _distanceValue: Infinity,
+              _missingService: true,
+            };
+          }
+          return {
+            ...r,
+            ...service,
+            _missingService: false,
+          };
+        });
+        // Remove duplicate serviceId (keep first occurrence)
+        const seen = new Set();
+        recommendsWithService = recommendsWithService.filter(r => {
+          if (!r.serviceId) return true; // keep placeholders
+          if (seen.has(r.serviceId)) return false;
+          seen.add(r.serviceId);
+          return true;
+        });
+        // Add distance
         const addDistanceToRecommends = (list) => {
           if (!userLocation) return list;
           return list.map(item => {
@@ -152,8 +212,10 @@ const Home = () => {
             return { ...item, distance: '-', _distanceValue: Infinity };
           });
         };
-
         recommendsWithService = addDistanceToRecommends(recommendsWithService);
+        // Sort by distance, but keep placeholders at the end
+        recommendsWithService = recommendsWithService.sort((a, b) => a._distanceValue - b._distanceValue);
+        console.log('[DEBUG] Final recommendsWithService:', recommendsWithService);
         setRecommends(recommendsWithService);
 
         // Blog
@@ -169,7 +231,7 @@ const Home = () => {
 
         // Tourist Attractions
         const touristCollectionRef = collection(FIREBASE_DB, 'Services');
-        const touristQuery = query(touristCollectionRef, where('category', '==', 'Tourist attraction'));
+        const touristQuery = query(touristCollectionRef, where('category', '==', 'Tourist Attraction'));
         const touristSnapshot = await getDocs(touristQuery);
         setTouristAttractions(touristSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
@@ -219,6 +281,9 @@ const Home = () => {
     fetchData();
   }, [userLocation]);
 
+  /**
+   * ดึงข้อมูล promotion พร้อมข้อมูล service ที่เกี่ยวข้อง
+   */
   useEffect(() => {
     const fetchPromotionsWithService = async () => {
       if (!promotions.length) {
@@ -265,6 +330,9 @@ const Home = () => {
     fetchPromotionsWithService();
   }, [promotions, userLocation]);
 
+  /**
+   * ดึงรายการ favorite ของผู้ใช้
+   */
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!authUser) {
@@ -278,7 +346,9 @@ const Home = () => {
     fetchFavorites();
   }, [authUser]);
 
-  // ฟังก์ชัน favorite
+  /**
+   * สลับสถานะ favorite (เพิ่ม/ลบ)
+   */
   const handleToggleFavorite = async (serviceId) => {
     if (!authUser || !serviceId) return;
     const favRef = doc(FIREBASE_DB, 'user', authUser.uid, 'favorites', serviceId);
@@ -442,10 +512,11 @@ const Home = () => {
           <Text style={styles.sectionTitle}>{t('categories')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <CategoryIcon title={t('restaurant')} emoji="🍽️" onPress={() => navigation.navigate('Search', { category: 'Restaurant' })}/>
-            <CategoryIcon title={t('beautyAndSalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & salon' })}/>
+            <CategoryIcon title={t('beautySalon')} emoji="💈" onPress={() => navigation.navigate('Search', { category: 'Beauty & Salon' })}/>
             <CategoryIcon title={t('resortAndHotel')} emoji="🏖️" onPress={() => navigation.navigate('Search', { category: 'Resort & Hotel' })}/>
-            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'attraction' })}/>
+            <CategoryIcon title={t('touristAttraction')} emoji="⛰️" onPress={() => navigation.navigate('Search', { category: 'Tourist Attraction' })}/>
             <CategoryIcon title={t('mosque')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Mosque' })}/>
+            <CategoryIcon title={t('Prayer Space')} emoji="🕌" onPress={() => navigation.navigate('Search', { category: 'Prayer Space' })}/>
           </ScrollView>
         </View>
 
@@ -651,7 +722,13 @@ const Home = () => {
 //       setDistance(dist);
 //     });
 //   }, []);
+  /**
+   * การ์ดแสดงสถานที่ (มัสยิด, สถานที่ท่องเที่ยว, สถานที่ละหมาด)
+   */
   const LocationCard = ({ navigation, favoriteIds = [], handleToggleFavorite, ...place }) => {
+  /**
+   * จัดการการกดการ์ด - นำทางไปหน้า Detail
+   */
   const handlePress = () => {
     const sanitized = {
       ...place,
@@ -689,6 +766,9 @@ const Home = () => {
   );
 };
 
+/**
+ * ไอคอนหมวดหมู่ - สำหรับเลือกประเภทบริการ
+ */
 const CategoryIcon = ({ title, emoji, onPress, isActive }) => (
   <TouchableOpacity style={[styles.categoryItem, isActive && styles.categoryItemActive]}onPress={onPress}>
     <View style={[styles.categoryIcon, isActive && styles.categoryIconActive]}>
@@ -698,13 +778,22 @@ const CategoryIcon = ({ title, emoji, onPress, isActive }) => (
   </TouchableOpacity>
 );
 
+/**
+ * การ์ดแนะนำบริการ - แสดงบริการที่ได้รับการอนุมัติแคมเปญ
+ */
 const RecommendCard = ({
   campaignId, serviceId, entrepreneurId, name, category, distance, image, navigation, favoriteIds = [], handleToggleFavorite, ...rest
 }) => {
+  /**
+   * บันทึกการแสดงผล (impression) เมื่อการ์ดถูกแสดง
+   */
   useEffect(() => {
     updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'impression' });
   }, []);
 
+  /**
+   * จัดการการกดการ์ด - บันทึกการคลิกและนำทางไปหน้า Detail
+   */
   const handleClick = () => {
     updateCampaignReport({ campaignId, serviceId, entrepreneurId, type: 'click' });
     if (navigation) {
@@ -757,6 +846,9 @@ const RecommendCard = ({
 //   </TouchableOpacity>
 // );
 
+/**
+ * การ์ดบทความ - แสดงบทความในหน้าแรก
+ */
 const BlogCard = ({ name, title, predescription, image, style, navigation, ...blog }) => (
   <TouchableOpacity
     style={style}
@@ -787,6 +879,9 @@ const BlogCard = ({ name, title, predescription, image, style, navigation, ...bl
 //   </TouchableOpacity>
 // );
 
+/**
+ * การ์ดโปรโมชั่น - แสดงโปรโมชั่นและส่วนลด
+ */
 const PromotionCard = ({
   discount,
   title,
@@ -831,6 +926,9 @@ const PromotionCard = ({
   </TouchableOpacity>
 );
 
+/**
+ * รายการนำทาง - สำหรับเมนูด้านล่าง
+ */
 const NavItem = ({ title, iconName, active, onPress }) => (
   <TouchableOpacity style={[styles.navItem, active && styles.navItemActive]} onPress={onPress}>
     <Feather name={iconName} size={24} color={active ? "#FDCB02" : "#9ca3af"} />

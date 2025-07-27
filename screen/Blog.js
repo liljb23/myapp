@@ -9,6 +9,7 @@ const Blog = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { t } = useTranslation();
 
   const toggleFavorite = (id) => {
@@ -21,11 +22,22 @@ const Blog = ({ navigation }) => {
     const fetchBlogs = async () => {
       try {
         setLoading(true);
+        setError(null);
+        console.log('🔄 Fetching blogs from Firebase...');
+        
         const blogsCollectionRef = collection(FIREBASE_DB, 'Blog');
         const blogsSnapshot = await getDocs(blogsCollectionRef);
-        setBlogs(blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        
+        const blogsData = blogsSnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        }));
+        
+        console.log(`✅ Fetched ${blogsData.length} blogs:`, blogsData.map(b => ({ id: b.id, title: b.title })));
+        setBlogs(blogsData);
       } catch (error) {
-        console.error('Error fetching blogs:', error);
+        console.error('❌ Error fetching blogs:', error);
+        setError('Failed to load blogs');
       } finally {
         setLoading(false);
       }
@@ -37,6 +49,18 @@ const Blog = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#063c2f" />
+        <Text style={styles.loadingText}>กำลังโหลดบทความ...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => window.location.reload()}>
+          <Text style={styles.retryButtonText}>ลองใหม่</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -55,38 +79,50 @@ const Blog = ({ navigation }) => {
 
       {/* Blog List */}
       <ScrollView>
-        {blogs.map((item) => (
-          <View key={item.id} style={styles.blogCard}>
-            <TouchableOpacity 
-              style={styles.blogCard} 
-              onPress={() => navigation.navigate('BlogDetail', { blog: item })}
-            />
-            <Image source={{ uri: item.image }} style={styles.blogImage} />
-            <View style={styles.blogContent}>
-              {item.name && (
-                <View style={styles.blogTag}>
-                  <Text style={styles.blogTagText}>{item.name}</Text>
-                </View>
-              )}
-              <Text style={styles.blogTitle}>{item.title}</Text>
-              {/* predescription */}
-              {item.predescription && (
-                <Text style={styles.blogPreDescription}>{item.predescription}</Text>
-              )}
-
-              {/* Read More Button & Favorite */}
-              <View style={styles.actionContainer}>
-                <TouchableOpacity 
-                  style={styles.readMoreButton}
-                  onPress={() => navigation.navigate('BlogDetail', { blog: item })}
-                >
-                  <Text style={styles.readMoreText}>{t('readMore')}</Text>
-                </TouchableOpacity>
-
-              </View>
-            </View>
+        {blogs.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>ไม่พบบทความ</Text>
+            <Text style={styles.emptySubText}>ยังไม่มีบทความในระบบ</Text>
           </View>
-        ))}
+        ) : (
+          blogs.map((item) => (
+            <TouchableOpacity 
+              key={item.id} 
+              style={styles.blogCard}
+              onPress={() => {
+                console.log('📱 Navigating to BlogDetail with:', { id: item.id, title: item.title });
+                navigation.navigate('BlogDetail', { blog: item });
+              }}
+            >
+              <Image source={{ uri: item.image }} style={styles.blogImage} />
+              <View style={styles.blogContent}>
+                {item.name && (
+                  <View style={styles.blogTag}>
+                    <Text style={styles.blogTagText}>{item.name}</Text>
+                  </View>
+                )}
+                <Text style={styles.blogTitle}>{item.title}</Text>
+                {/* predescription */}
+                {item.predescription && (
+                  <Text style={styles.blogPreDescription}>{item.predescription}</Text>
+                )}
+
+                {/* Read More Button */}
+                <View style={styles.actionContainer}>
+                  <TouchableOpacity 
+                    style={styles.readMoreButton}
+                    onPress={() => {
+                      console.log('📱 Read More clicked for:', item.title);
+                      navigation.navigate('BlogDetail', { blog: item });
+                    }}
+                  >
+                    <Text style={styles.readMoreText}>{t('readMore')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -182,6 +218,43 @@ const styles = StyleSheet.create({
   readMoreText: {
     color: 'white',
     fontSize: 14,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#ff0000',
+    textAlign: 'center',
+    marginBottom: 10,
+    fontSize: 16,
+  },
+  retryButton: {
+    backgroundColor: '#063c2f',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
   },
 });
 

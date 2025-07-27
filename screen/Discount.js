@@ -114,7 +114,9 @@ const Discount = () => {
         <View style={styles.overlay}>
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
             <View style={styles.row}>
-              <Text style={styles.discount}>{item.discount ? `${item.discount}% ${t('discount')}` : ''}</Text>
+              <Text style={styles.discount}>
+                {item.discount ? `${item.discount}% ${t('discount')}` : ''}
+              </Text>
               {item.shopDistance && item.shopDistance !== '-' && (
                 <View style={styles.distanceRow}>
                   <Feather name="map-pin" size={13} color="#fff" />

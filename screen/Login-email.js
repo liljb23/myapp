@@ -10,13 +10,14 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { FIREBASE_AUTH } from './FirebaseConfig';
+import { FIREBASE_AUTH, FIREBASE_DB } from './FirebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { Feather } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { navigationRef } from '../App';
+import { doc, getDoc } from 'firebase/firestore';
 
 const DARK_GREEN = '#014737';
 const YELLOW = '#FFD600';
@@ -37,11 +38,67 @@ const LoginEmail = (props) => {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
-      navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] });
+      // Sign in with email and password
+      const userCredential = await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
+      const user = userCredential.user;
+      
+      // Check user role in Firestore
+      const userDocRef = doc(FIREBASE_DB, 'user', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const userRole = userData.role?.toLowerCase();
+        
+        // Check if user is an entrepreneur and inactive
+        if (userRole === 'entrepreneur' && userData.status === 'inactive') {
+          await FIREBASE_AUTH.signOut();
+          Alert.alert(
+            'Account Suspended',
+            'Your account has been deactivated. Please contact support for assistance.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setEmail('');
+                  setPassword('');
+                }
+              }
+            ]
+          );
+          return;
+        }
+      }
+      
+      // If user is not an entrepreneur and account is active, proceed with login
+      navigation.reset({ 
+        index: 0, 
+        routes: [{ 
+          name: 'GeneralUserTabs', 
+          state: { 
+            index: 0, 
+            routes: [{ name: 'HomeTab' }] 
+          } 
+        }] 
+      });
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', error.message);
+      console.error('Login error:', error);
+      let errorMessage = 'Login failed. Please try again.';
+      
+      // Handle specific Firebase auth errors
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email address.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'This account has been disabled.';
+      }
+      
+      Alert.alert('Login Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -62,7 +119,7 @@ const LoginEmail = (props) => {
     <SafeAreaView style={styles.safeArea}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => navigationRef.current?.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] })}
+        onPress={() => navigation.reset({ index: 0, routes: [ { name: 'GeneralUserTabs', state: { index: 0, routes: [{ name: 'HomeTab' }] } } ] })}
       >
         <Feather name="arrow-left" size={32} color="#ffff" />
       </TouchableOpacity>

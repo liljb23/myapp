@@ -157,11 +157,18 @@ const AddServices = ({ navigation }) => {
     setShowTimePicker(true);
   };
 
+  // Province state and list
+  const [province, setProvince] = useState('');
+  const provinces = [
+    "Bangkok", "Ayutthaya", "Krabi", "Chiang Mai", "Phuket", "Chonburi", "Nakhon Ratchasima", "Khon Kaen", "Udon Thani", "Surat Thani",
+    // ...add all provinces you want
+  ];
+
   // Form submission
   const handleSubmit = async () => {
     // Validation
-    if (!serviceName || !category || !location || !phone) {
-      Alert.alert("Required Fields", "Please fill in all required fields: Service Name, Category, Location, and Phone Number.");
+    if (!serviceName || !category || !location || !phone || !province) {
+      Alert.alert("Required Fields", "Please fill in all required fields: Service Name, Category, Location, Phone Number, and Province.");
       return;
     }
 
@@ -176,6 +183,7 @@ const AddServices = ({ navigation }) => {
         category: category,
         description: description,
         location: location,
+        province: province, // <-- add this line
         operatingHours: operatingHours,
         phone: phone,
         parkingArea: parkingArea,
@@ -261,6 +269,30 @@ const AddServices = ({ navigation }) => {
         onChangeText={setServiceName}
         placeholderTextColor="#999"
       />
+
+      {/* Province Selection */}
+      <Text style={styles.label}>Province <Text style={styles.required}>*</Text></Text>
+      <View style={styles.input}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {provinces.map((prov) => (
+            <TouchableOpacity
+              key={prov}
+              style={[
+                styles.provinceButton,
+                province === prov && styles.selectedProvinceButton
+              ]}
+              onPress={() => setProvince(prov)}
+            >
+              <Text style={[
+                styles.provinceButtonText,
+                province === prov && styles.selectedProvinceButtonText
+              ]}>
+                {prov}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Location */}
       <Text style={styles.label}>Location <Text style={styles.required}>*</Text></Text>
@@ -557,10 +589,10 @@ const AddServices = ({ navigation }) => {
       <TouchableOpacity
         style={[
           styles.submitButton,
-          (!acceptedTerms || !confirmedInfo || !serviceName || !category || !location || !phone) && styles.disabledButton
+          (!acceptedTerms || !confirmedInfo || !serviceName || !category || !location || !phone || !province) && styles.disabledButton
         ]}
         onPress={handleSubmit}
-        disabled={!acceptedTerms || !confirmedInfo || !serviceName || !category || !location || !phone}>
+        disabled={!acceptedTerms || !confirmedInfo || !serviceName || !category || !location || !phone || !province}>
         <Text style={styles.submitButtonText}>Submit</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -920,6 +952,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  provinceButton: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+},
+selectedProvinceButton: {
+    backgroundColor: '#014737',
+},
+provinceButtonText: {
+    color: '#333',
+},
+selectedProvinceButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+},
 });
 
 export default AddServices;

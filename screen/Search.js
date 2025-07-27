@@ -279,7 +279,6 @@ const Search = () => {
       setFilteredServices(filtered);
     }
   }, [searchText, services]);
-
   // ค้นหาข้อมูลเมื่อพิมพ์ หรือเปลี่ยนจังหวัดที่เลือก
   useEffect(() => {
     let filtered = services;
@@ -290,15 +289,21 @@ const Search = () => {
       );
     }
 
-    if (selectedProvince !== "All") {
+    // ฟิลเตอร์จังหวัด: ตรวจจับชื่อจังหวัดใน location (case-insensitive) เฉพาะถ้าไม่ใช่ 'All' หรือ 'Near me'
+    if (selectedProvince && selectedProvince !== "All" && selectedProvince !== "Near me") {
       filtered = filtered.filter(
-        (service) => service.province === selectedProvince
+        (service) =>
+          service.location &&
+          service.location.toLowerCase().includes(selectedProvince.toLowerCase())
       );
     }
 
-    if (selectedCategory !== "All") {
+    // ฟิลเตอร์ category: ถ้าเลือก All ให้แสดงทั้งหมด, ถ้าเลือก category เฉพาะ ให้ filter ด้วย service.category === selectedCategory (case-insensitive)
+    if (selectedCategory && selectedCategory !== "All") {
       filtered = filtered.filter(
-        (service) => service.category === selectedCategory
+        (service) =>
+          service.category &&
+          service.category.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
 
@@ -316,7 +321,9 @@ const Search = () => {
       }
       if (selectedProvince !== "All" && selectedProvince !== "Near me") {
         filtered = filtered.filter(
-          (service) => service.province === selectedProvince
+          (service) =>
+            service.location &&
+            service.location.toLowerCase().includes(selectedProvince.toLowerCase())
         );
       }
       setFilteredServices(filtered);
@@ -332,13 +339,7 @@ const Search = () => {
         if (province !== "Near me" && category !== "All") {
           q = query(
             collection(FIREBASE_DB, "Services"),
-            where("province", "==", province),
             where("category", "==", category)
-          );
-        } else if (province !== "Near me") {
-          q = query(
-            collection(FIREBASE_DB, "Services"),
-            where("province", "==", province)
           );
         } else if (category !== "All") {
           q = query(
@@ -363,13 +364,21 @@ const Search = () => {
             : null,
         }));
 
+        let filtered = serviceList;
+        if (province !== "All" && province !== "Near me") {
+          filtered = filtered.filter(
+            (service) =>
+              service.location &&
+              service.location.toLowerCase().includes(province.toLowerCase())
+          );
+        }
         if (province === "Near me" && userLocation) {
-          serviceList.sort(
+          filtered.sort(
             (a, b) => (a.distance || Infinity) - (b.distance || Infinity)
           );
         }
-        setFilteredServices(serviceList);
-        setServices(serviceList);
+        setFilteredServices(filtered);
+        setServices(filtered);
       } catch (err) {
         setError("Error fetching services");
         console.error(err);
@@ -430,7 +439,6 @@ const Search = () => {
       </Text>
     </TouchableOpacity>
   );
-
   const handleSearch = (text) => {
     setSearchText(text);
     const filtered = services.filter((service) =>
@@ -558,90 +566,61 @@ const Search = () => {
   );
 
 
-  const renderMapView = () => (
-    <View style={styles.mapContainer}>
-      <MapView
-        provider={GOOGLE}
-        style={{ flex: 1 }}
-        showsUserLocation={true}
-        followsUserLocation={true}
-        region={region}
-        // onRegionChangeComplete={(newRegion) => {
-        //   if (
-        //     Math.abs(region.latitude - newRegion.latitude) > 0.00001 ||
-        //     Math.abs(region.longitude - newRegion.longitude) > 0.00001 ||
-        //     Math.abs(region.latitudeDelta - newRegion.latitudeDelta) > 0.00001 ||
-        //     Math.abs(region.longitudeDelta - newRegion.longitudeDelta) > 0.00001
-        //   ) {
-        //     setRegion(newRegion);
-        //   }
-        // }}
-      >
-        {/* 📍 Marker สำหรับตำแหน่งปัจจุบัน */}
-        {userLocation && (
-          <Marker coordinate={userLocation} title={t('yourLocation')}>
-            <View style={styles.currentLocationMarker}>
-              <FontAwesome name="map-marker" size={36} color="blue" />
-            </View>
-          </Marker>
-        )}
-
-        {/* 📍 Marker สำหรับสถานที่ต่าง ๆ */}
-        {filteredServices.map((service) => {
-          if (!service.latitude || !service.longitude) {
-            console.warn("⚠️ Missing coordinates for:", service?.name);
-            return null;
-          }
-
-          const lat = Number(service.latitude);
-          const lng = Number(service.longitude);
-
-          if (isNaN(lat) || isNaN(lng)) {
-            console.error(
-              "🚨 Invalid coordinates:",
-              service.name,
-              service.latitude,
-              service.longitude
-            );
-            return null;
-          }
-
-          console.log(
-            `📍 Rendering marker for ${service.name} at [${lat}, ${lng}]`
-          );
-
-          return (
-            <Marker
-              key={service.id}
-              coordinate={{ latitude: lat, longitude: lng }}
-              title={service.name}
-              description={service.category}
-              onPress={() => {
-                setSelectedPlace(service);
-                setSelectedMarker(service.id);
-              }}
-            >
-              {selectedMarker === service.id ? (
-                <FontAwesome name="map-marker" size={36} color="red" />
-              ) : (
-                <Feather name={getCategoryIcon(service.category)} size={24} color="#014737" />
-              )}
+  const renderMapView = () => {
+    console.log('filteredServices for map:', filteredServices);
+    return (
+      <View style={styles.mapContainer}>
+        <MapView
+          provider={GOOGLE}
+          style={{ flex: 1 }}
+          showsUserLocation={true}
+          followsUserLocation={true}
+          region={region}
+        >
+          {/* 📍 Marker สำหรับตำแหน่งปัจจุบัน */}
+          {userLocation && (
+            <Marker coordinate={userLocation} title={t('yourLocation')}>
+              <View style={styles.currentLocationMarker}>
+                <FontAwesome name="map-marker" size={36} color="blue" />
+              </View>
             </Marker>
-          );
-        })}
-      </MapView>
-      {/* ย้าย Zoom Controls มานอก MapView */}
-      <View style={styles.zoomControls}>
-        <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
-          <Text style={styles.zoomButtonText}>+</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
-          <Text style={styles.zoomButtonText}>-</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+          )}
 
+          {/* 📍 Marker สำหรับสถานที่ต่าง ๆ */}
+          {filteredServices.map((service) => {
+            const lat = Number(service.latitude);
+            const lng = Number(service.longitude);
+            if (isNaN(lat) || isNaN(lng)) {
+              console.warn('⚠️ Invalid coordinates for:', service?.name, service?.latitude, service?.longitude);
+              return null;
+            }
+            return (
+              <Marker
+                key={service.id}
+                coordinate={{ latitude: lat, longitude: lng }}
+                title={service.name}
+                description={service.category}
+                onPress={() => {
+                  setSelectedPlace(service);
+                  setSelectedMarker(service.id);
+                }}
+              >
+                <FontAwesome name="map-marker" size={36} color="red" />
+              </Marker>
+            );
+          })}
+        </MapView>
+        <View style={styles.zoomControls}>
+          <TouchableOpacity onPress={zoomIn} style={styles.zoomButton}>
+            <Text style={styles.zoomButtonText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={zoomOut} style={styles.zoomButton}>
+            <Text style={styles.zoomButtonText}>-</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
   useEffect(() => {
     fetchServicesByProvinceAndCategory(selectedProvince, selectedCategory);
   }, [
@@ -828,6 +807,15 @@ const Search = () => {
               <TouchableOpacity
                 style={styles.modalOption}
                 onPress={() => {
+                  setSelectedProvince('All');
+                  setProvinceModalVisible(false);
+                }}
+              >
+                <Text style={styles.optionText}>All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() => {
                   setSelectedProvince(t('nearMe'));
                   setProvinceModalVisible(false);
                 }}
@@ -895,7 +883,6 @@ const Search = () => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

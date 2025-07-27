@@ -21,7 +21,16 @@ export default function AddMapScreen({ navigation, route }) {
     try {
       const result = await Location.reverseGeocodeAsync({ latitude, longitude });
       if (result.length > 0) {
-        const fullAddress = `${result[0].name || ''} ${result[0].street || ''} ${result[0].district || ''}`;
+        const r = result[0];
+        const fullAddress = [
+          r.name,
+          r.street,
+          r.district,
+          r.city,
+          r.region,
+          r.postalCode,
+          r.country
+        ].filter(Boolean).join(', ');
         setAddress(fullAddress.trim());
       } else {
         setAddress('Address not found');

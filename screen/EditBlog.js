@@ -17,11 +17,12 @@ export default function EditBlog({ route, navigation }) {
   const [title, setTitle] = useState(blog.title || '');
   const [name, setName] = useState(blog.name || '');
   const [predescription, setPredescription] = useState(blog.predescription || '');
+  const [description, setDescription] = useState(blog.description || '');
   const [image, setImage] = useState(blog.image || '');
 
   const handleUpdate = async () => {
     if (!title || !name || !predescription || !image) {
-      Alert.alert('Please fill out all fields');
+      Alert.alert('Please fill out all required fields');
       return;
     }
     try {
@@ -29,6 +30,7 @@ export default function EditBlog({ route, navigation }) {
         title,
         name,
         predescription,
+        description,
         image,
       });
       Alert.alert('✅ Blog updated!');
@@ -43,16 +45,19 @@ export default function EditBlog({ route, navigation }) {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Edit Blog</Text>
 
-      <Text style={styles.label}>Blog Title</Text>
+      <Text style={styles.label}>Blog Title *</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="e.g. A Complete Guide to Ramadan" />
 
-      <Text style={styles.label}>Name</Text>
+      <Text style={styles.label}>Name *</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Ramadan 2025" />
 
-      <Text style={styles.label}>Predescription</Text>
-      <TextInput style={[styles.input, { height: 80 }]} value={predescription} onChangeText={setPredescription} multiline placeholder="Short summary..." />
+      <Text style={styles.label}>Short Description *</Text>
+      <TextInput style={[styles.input, { height: 80 }]} value={predescription} onChangeText={setPredescription} multiline placeholder="Short summary for preview..." />
 
-      <Text style={styles.label}>Image URL</Text>
+      <Text style={styles.label}>Full Content</Text>
+      <TextInput style={[styles.input, { height: 200 }]} value={description} onChangeText={setDescription} multiline placeholder="Detailed blog content (optional)..." />
+
+      <Text style={styles.label}>Image URL *</Text>
       <TextInput style={styles.input} value={image} onChangeText={setImage} placeholder="Paste image link here" />
 
       <TouchableOpacity style={styles.button} onPress={handleUpdate}>

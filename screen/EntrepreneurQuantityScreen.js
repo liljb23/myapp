@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { collection, getDocs, deleteDoc, doc, query, where, getDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, query, where, getDoc } from 'firebase/firestore';
 import React, { useState, useCallback } from 'react';
 import {
   FlatList,
@@ -38,8 +38,10 @@ export default function EntrepreneurQuantityScreen() {
       // 2. Fetch all services and campaigns at once
       const servicesSnap = await getDocs(collection(FIREBASE_DB, 'Services'));
       const campaignsSnap = await getDocs(collection(FIREBASE_DB, 'CampaignSubscriptions'));
+      const promotionsSnap = await getDocs(collection(FIREBASE_DB, 'promotions'));
       console.log('Fetched services:', servicesSnap.docs.length);
       console.log('Fetched campaigns:', campaignsSnap.docs.length);
+      console.log('Fetched promotions:', promotionsSnap.docs.length);
 
       // 3. Group services and campaigns by entrepreneur ID for efficient lookup
       const servicesByEntrepreneur = servicesSnap.docs.reduce((acc, doc) => {
@@ -72,10 +74,24 @@ export default function EntrepreneurQuantityScreen() {
           serviceName: serviceNameMap[campaign.serviceId] || 'Service not found',
         }));
 
+        // Get promotions for this entrepreneur's services
+        const entrepreneurServiceIds = services.map(service => service.id);
+        const promotions = [];
+        if (entrepreneurServiceIds.length > 0) {
+          entrepreneurServiceIds.forEach(serviceId => {
+            const servicePromotions = promotionsSnap.docs
+              .filter(doc => doc.data().serviceId === serviceId)
+              .map(doc => ({ id: doc.id, ...doc.data() }));
+            promotions.push(...servicePromotions);
+          });
+        }
+
         return {
           ...entrepreneur,
           services,
           campaigns,
+          promotions,
+          status: entrepreneur.status || 'active', 
         };
       });
 
@@ -94,45 +110,85 @@ export default function EntrepreneurQuantityScreen() {
     }, [])
   );
 
-  const handleDelete = async (userId) => {
+  const handleStatusToggle = async (userId, currentStatus) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const actionText = newStatus === 'active' ? 'activate' : 'deactivate';
+    
     Alert.alert(
-      'Delete Entrepreneur',
-      'Are you sure you want to delete this entrepreneur? This will also delete all associated services and campaigns.',
+      `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} Entrepreneur`,
+      `Are you sure you want to ${actionText} this entrepreneur? This will also ${actionText} all associated services and campaigns.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
-          style: 'destructive',
+          text: actionText.charAt(0).toUpperCase() + actionText.slice(1),
+          style: newStatus === 'inactive' ? 'destructive' : 'default',
           onPress: async () => {
             try {
-              // 1. ลบ Services ทั้งหมดของ entrepreneur
+              // 1. Update entrepreneur status
+              await updateDoc(doc(FIREBASE_DB, 'user', userId), {
+                status: newStatus,
+                updatedAt: new Date()
+              });
+
+              // 2. Update all services status for this entrepreneur
               const servicesQuery = query(
                 collection(FIREBASE_DB, 'Services'),
                 where('EntrepreneurId', '==', userId)
               );
               const servicesSnap = await getDocs(servicesQuery);
               for (const docSnap of servicesSnap.docs) {
-                await deleteDoc(doc(FIREBASE_DB, 'Services', docSnap.id));
+                await updateDoc(doc(FIREBASE_DB, 'Services', docSnap.id), {
+                  status: newStatus,
+                  updatedAt: new Date()
+                });
               }
 
-              // 2. ลบ Campaigns ทั้งหมดของ entrepreneur
+              // 3. Update all campaigns status for this entrepreneur only
               const campaignsQuery = query(
                 collection(FIREBASE_DB, 'CampaignSubscriptions'),
                 where('EntrepreneurId', '==', userId)
               );
               const campaignsSnap = await getDocs(campaignsQuery);
               for (const docSnap of campaignsSnap.docs) {
-                await deleteDoc(doc(FIREBASE_DB, 'CampaignSubscriptions', docSnap.id));
+                await updateDoc(doc(FIREBASE_DB, 'CampaignSubscriptions', docSnap.id), {
+                  status: newStatus,
+                  updatedAt: new Date()
+                });
               }
 
-              // 3. ลบ entrepreneur
-              await deleteDoc(doc(FIREBASE_DB, 'user', userId));
+              // 4. Update promotions status for this entrepreneur only (by serviceId)
+              // First get all service IDs for this entrepreneur
+              const entrepreneurServiceIds = servicesSnap.docs.map(doc => doc.id);
+              
+              if (entrepreneurServiceIds.length > 0) {
+                // Get all promotions for these services
+                const promotionsQuery = query(
+                  collection(FIREBASE_DB, 'promotions'),
+                  where('serviceId', 'in', entrepreneurServiceIds)
+                );
+                const promotionsSnap = await getDocs(promotionsQuery);
+                for (const docSnap of promotionsSnap.docs) {
+                  await updateDoc(doc(FIREBASE_DB, 'promotions', docSnap.id), {
+                    status: newStatus,
+                    updatedAt: new Date()
+                  });
+                }
+              }
 
-              setUsers(users.filter(u => u.id !== userId));
-              Alert.alert('Success', 'Entrepreneur and all associated data deleted successfully');
+              // 5. Update local state
+              setUsers(users.map(user => 
+                user.id === userId 
+                  ? { ...user, status: newStatus }
+                  : user
+              ));
+
+              Alert.alert(
+                'Success', 
+                `Entrepreneur and all associated data ${actionText}d successfully`
+              );
             } catch (error) {
-              console.error('Error deleting entrepreneur:', error);
-              Alert.alert('Error', 'Failed to delete entrepreneur and associated data');
+              console.error('Error updating entrepreneur status:', error);
+              Alert.alert('Error', `Failed to ${actionText} entrepreneur and associated data`);
             }
           },
         },
@@ -141,27 +197,136 @@ export default function EntrepreneurQuantityScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Text style={styles.username}>ชื่อ: {item.name || 'N/A'}</Text>
+    <View style={[styles.card, item.status === 'inactive' && styles.inactiveCard]}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.username}>ชื่อ: {item.name || 'N/A'}</Text>
+        <View style={[
+          styles.statusBadge, 
+          item.status === 'active' ? styles.activeBadge : styles.inactiveBadge
+        ]}>
+          <Text style={[
+            styles.statusText,
+            item.status === 'active' ? styles.activeStatusText : styles.inactiveStatusText
+          ]}>
+            {item.status === 'active' ? 'Active' : 'Inactive'}
+          </Text>
+        </View>
+      </View>
+      
       <Text style={styles.email}>อีเมล: {item.email || 'N/A'}</Text>
       <Text style={styles.email}>เบอร์โทร: {item.phone || '-'}</Text>
       <Text style={styles.email}>EntrepreneurId: {item.id}</Text>
       
       {/* Services Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Services ({item.services.length})</Text>
+        <Text style={styles.sectionTitle}>
+          Services ({item.services.length}) 
+          {item.status === 'inactive' && <Text style={styles.inactiveNote}> - All Inactive</Text>}
+        </Text>
         {item.services.map(service => (
           <View key={service.id} style={styles.itemRow}>
             <Text style={styles.itemText}>
               • {service.name} (ServiceId: {service.id}, EntrepreneurId: {service.EntrepreneurId})
             </Text>
+            {/* Active button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+              <TouchableOpacity
+                style={[
+                  styles.deleteButton,
+                  { backgroundColor: service.active ? '#eaffea' : '#ffeaea' }
+                ]}
+                onPress={async () => {
+                  try {
+                    // Toggle active status
+                    const newStatus = !service.active;
+                    // Update the service's active status in Firestore
+                    await updateDoc(doc(FIREBASE_DB, 'Services', service.id), { active: newStatus });
+
+                    if (!newStatus) {
+                      // Deactivate campaigns
+                      const campaignsSnap = await getDocs(
+                        query(
+                          collection(FIREBASE_DB, 'Campaigns'),
+                          where('serviceId', '==', service.id)
+                        )
+                      );
+                      for (const docSnap of campaignsSnap.docs) {
+                        await updateDoc(doc(FIREBASE_DB, 'Campaigns', docSnap.id), { active: false });
+                      }
+
+                      // Deactivate campaign subscriptions
+                      const subsSnap = await getDocs(
+                        query(
+                          collection(FIREBASE_DB, 'CampaignSubscriptions'),
+                          where('serviceId', '==', service.id)
+                        )
+                      );
+                      for (const docSnap of subsSnap.docs) {
+                        await updateDoc(doc(FIREBASE_DB, 'CampaignSubscriptions', docSnap.id), { active: false });
+                      }
+                      const closePromotion = async (promoId) => {
+                        try {
+                          // อ้างอิงไปที่โปรโมชันที่ต้องการปิดใน Firestore
+                          const promoRef = doc(FIREBASE_DB, 'promotions', promoId);
+                          // อัปเดตสถานะโปรโมชันเป็น 'inactive'
+                          await updateDoc(promoRef, { active: false });
+                          console.log(`Promotion with ID ${promoId} has been deactivated.`);
+                        } catch (error) {
+                          console.error('Error deactivating promotion:', error);
+                        }
+                      };
+                      // Call closePromotion for specific promotion IDs if needed
+                      // closePromotion('promo123'); // Uncomment and modify as needed
+                    }
+
+                    // Update local state
+                    setUsers(prevUsers =>
+                      prevUsers.map(u =>
+                        u.id === item.id
+                          ? {
+                              ...u,
+                              services: u.services.map(s =>
+                                s.id === service.id ? { ...s, active: newStatus } : s
+                              ),
+                            }
+                          : u
+                      )
+                    );
+                    Alert.alert(
+                      'Success',
+                      `Service "${service.name}" is now ${newStatus ? 'Active' : 'Inactive'}`
+                    );
+                  } catch (error) {
+                    console.error('Error updating service status:', error);
+                    Alert.alert('Error', 'Failed to update service status');
+                  }
+                }}
+              >
+                <Ionicons
+                  name={service.active ? "checkmark-circle-outline" : "close-circle-outline"}
+                  size={18}
+                  color={service.active ? "#2E7D32" : "#D11A2A"}
+                />
+                <Text
+                  style={[
+                    styles.deleteButtonText,
+                    { color: service.active ? "#2E7D32" : "#D11A2A" }
+                  ]}
+                >
+                  {service.active ? "Active" : "Inactive"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
 
       {/* Campaigns Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Campaigns ({item.campaigns.length})</Text>
+        <Text style={styles.sectionTitle}>
+          Campaigns ({item.campaigns.length})
+          {item.status === 'inactive' && <Text style={styles.inactiveNote}> - All Inactive</Text>}
+        </Text>
         {item.campaigns.map(campaign => (
           <View key={campaign.id} style={styles.itemRow}>
             <Text style={styles.itemText}>
@@ -171,15 +336,45 @@ export default function EntrepreneurQuantityScreen() {
         ))}
       </View>
 
+      {/* Promotions Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>
+          Promotions ({item.promotions.length})
+          {item.status === 'inactive' && <Text style={styles.inactiveNote}> - All Inactive</Text>}
+        </Text>
+        {item.promotions.map(promotion => (
+          <View key={promotion.id} style={styles.itemRow}>
+            <Text style={styles.itemText}>
+              • {promotion.title} - {promotion.discount ? `${promotion.discount}% OFF` : 'N/A'} (Service ID: {promotion.serviceId})
+            </Text>
+          </View>
+        ))}
+      </View>
+
       <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDelete(item.id)}
+        style={[
+          styles.statusButton,
+          item.status === 'active' ? styles.deactivateButton : styles.activateButton
+        ]}
+        onPress={() => handleStatusToggle(item.id, item.status)}
       >
-        <Ionicons name="trash-outline" size={18} color="#D11A2A" />
-        <Text style={styles.deleteButtonText}>Delete</Text>
+        <Ionicons 
+          name={item.status === 'active' ? 'pause-outline' : 'play-outline'} 
+          size={18} 
+          color={item.status === 'active' ? '#D11A2A' : '#28a745'} 
+        />
+        <Text style={[
+          styles.statusButtonText,
+          item.status === 'active' ? styles.deactivateButtonText : styles.activateButtonText
+        ]}>
+          {item.status === 'active' ? 'Deactivate' : 'Activate'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
+
+  const activeUsers = users.filter(user => user.status === 'active');
+  const inactiveUsers = users.filter(user => user.status === 'inactive');
 
   return (
     <View style={styles.container}>
@@ -189,8 +384,10 @@ export default function EntrepreneurQuantityScreen() {
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Entrepreneurs Quantity</Text>
-          <Text style={styles.quantityText}>Total: {users.length}</Text>
+          <Text style={styles.headerTitle}>Entrepreneurs Management</Text>
+          <Text style={styles.quantityText}>
+            Active: {activeUsers.length} | Inactive: {inactiveUsers.length} | Total: {users.length}
+          </Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
@@ -265,6 +462,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
   },
+  inactiveCard: {
+    opacity: 0.7,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   username: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -273,6 +479,36 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 13,
     color: '#666',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+  },
+  activeBadge: {
+    backgroundColor: '#e0f2f7',
+    borderColor: '#007bff',
+    borderWidth: 1,
+  },
+  inactiveBadge: {
+    backgroundColor: '#f8d7da',
+    borderColor: '#f5c6cb',
+    borderWidth: 1,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeStatusText: {
+    color: '#007bff',
+  },
+  inactiveStatusText: {
+    color: '#dc3545',
+  },
+  inactiveNote: {
+    fontSize: 12,
+    color: '#dc3545',
+    marginLeft: 10,
   },
   section: {
     marginTop: 15,
@@ -294,18 +530,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-  deleteButton: {
+  statusButton: {
     marginTop: 15,
-    backgroundColor: '#ffeaea',
     padding: 8,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
-  deleteButtonText: {
-    color: '#D11A2A',
+  activateButton: {
+    backgroundColor: '#e0f2f7',
+    borderColor: '#007bff',
+    borderWidth: 1,
+  },
+  deactivateButton: {
+    backgroundColor: '#f8d7da',
+    borderColor: '#dc3545',
+    borderWidth: 1,
+  },
+  statusButtonText: {
     marginLeft: 5,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  activateButtonText: {
+    color: '#007bff',
+  },
+  deactivateButtonText: {
+    color: '#dc3545',
   },
   listContent: {
     padding: 20,
@@ -331,5 +585,19 @@ const styles = StyleSheet.create({
     color:'#FFD700',
     fontSize: 12,
     marginTop: 3,
-  }
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  deleteButtonText: {
+    marginLeft: 8,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
 }); 

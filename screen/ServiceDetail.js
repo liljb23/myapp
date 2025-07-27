@@ -152,6 +152,18 @@ const ServiceDetail = () => {
         <View style={styles.innerCard}>
           <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8}}>
             <Text style={styles.title}>{service.name}</Text>
+            {/* Status Badge */}
+            <View style={[
+              styles.statusBadge, 
+              service.status === 'active' ? styles.activeBadge : styles.inactiveBadge
+            ]}>
+              <Text style={[
+                styles.statusText,
+                service.status === 'active' ? styles.activeStatusText : styles.inactiveStatusText
+              ]}>
+                {service.status === 'active' ? 'Active' : 'Inactive'}
+              </Text>
+            </View>
           </View>
           <View style={{flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12}}>
             <View style={{flexDirection: "row", alignItems: "center"}}>
@@ -440,6 +452,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    alignSelf: 'flex-start',
+  },
+  activeBadge: {
+    backgroundColor: '#E0F2F7',
+    borderWidth: 1,
+    borderColor: '#014737',
+  },
+  inactiveBadge: {
+    backgroundColor: '#FDECEC',
+    borderWidth: 1,
+    borderColor: '#D93025',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeStatusText: {
+    color: '#014737',
+  },
+  inactiveStatusText: {
+    color: '#D93025',
   },
 });
 
