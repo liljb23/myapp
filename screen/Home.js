@@ -309,6 +309,7 @@ const Home = () => {
       const list = promotions.map(promo => {
         let service = promo.serviceId ? servicesMap[promo.serviceId] : null;
         let distance = '-';
+        let numericDistance = null;
         if (service && userLocation && service.latitude && service.longitude) {
           const d = getDistanceFromLatLonInKm(
             userLocation.latitude,
@@ -317,14 +318,18 @@ const Home = () => {
             Number(service.longitude)
           );
           distance = `${d.toFixed(2)} km`;
+          numericDistance = d;
         }
         return {
           ...promo,
           shopName: service?.name || '',
           shopImage: service?.image || '',
           shopDistance: distance,
+          _numericDistance: numericDistance,
         };
-      });
+      })
+      // Filter to only those within 18km (if distance is available)
+      .filter(item => item._numericDistance === null || item._numericDistance <= 95);
       setPromotionsWithService(list);
     };
     fetchPromotionsWithService();
